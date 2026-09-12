@@ -687,7 +687,7 @@ export default function ConstellationMatchPrototype() {
                   type="text"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
-                  placeholder="例: ほしの"
+                  placeholder="例: あなた"
                   style={{
                     width: "100%",
                     padding: "12px 14px",
