@@ -19,6 +19,7 @@ type MatchResult = {
   nickname: string;
   twitter_url: string | null;
   instagram_url: string | null;
+  comment: string | null;
   matchCount: number;
 };
 
@@ -100,12 +101,19 @@ function Starfield() {
 // ---- 進捗を星座の線で見せるインジケーター ---------------------------------
 function ConstellationProgress({ total, current }: { total: number; current: number }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 32 }}>
+    <div style={{ display: "flex", alignItems: "center", width: "100%", marginBottom: 32 }}>
       {Array.from({ length: total }, (_, i) => {
         const done = i < current;
         const active = i === current;
         return (
-          <div key={i} style={{ display: "flex", alignItems: "center" }}>
+          <div
+            key={i}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              flex: i < total - 1 ? "1 1 auto" : "0 0 auto",
+            }}
+          >
             <div
               style={{
                 width: active ? 10 : 7,
@@ -114,13 +122,16 @@ function ConstellationProgress({ total, current }: { total: number; current: num
                 background: done || active ? colors.gold : "rgba(236,234,246,0.18)",
                 boxShadow: active ? `0 0 8px ${colors.gold}` : "none",
                 transition: "all 0.3s ease",
+                flexShrink: 0,
               }}
             />
             {i < total - 1 && (
               <div
                 style={{
-                  width: 16,
+                  flex: 1,
+                  minWidth: 4,
                   height: 1,
+                  margin: "0 2px",
                   background: done ? colors.gold : "rgba(236,234,246,0.14)",
                   transition: "background 0.3s ease",
                 }}
@@ -192,6 +203,7 @@ export default function ConstellationMatchPrototype() {
   const [nickname, setNickname] = useState("");
   const [twitterHandle, setTwitterHandle] = useState("");
   const [instagramHandle, setInstagramHandle] = useState("");
+  const [comment, setComment] = useState("");
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [topMatches, setTopMatches] = useState<MatchResult[]>([]);
@@ -268,12 +280,14 @@ export default function ConstellationMatchPrototype() {
           nickname: string;
           twitter_url: string | null;
           instagram_url: string | null;
+          comment: string | null;
           match_count: number;
         }) => ({
           id: m.id,
           nickname: m.nickname,
           twitter_url: m.twitter_url,
           instagram_url: m.instagram_url,
+          comment: m.comment,
           matchCount: m.match_count,
         })
       )
@@ -301,6 +315,7 @@ export default function ConstellationMatchPrototype() {
     setNickname("");
     setTwitterHandle("");
     setInstagramHandle("");
+    setComment("");
     setFormError("");
     setTopMatches([]);
     setExactMatchCount(0);
@@ -366,6 +381,7 @@ export default function ConstellationMatchPrototype() {
       p_instagram_url: instagramUrl,
       p_answer_pattern: answerPattern,
       p_question_set: QUESTION_SET_NUMBER,
+      p_comment: comment.trim() || null,
       p_is_admin: isAdmin,
     });
 
@@ -408,12 +424,14 @@ export default function ConstellationMatchPrototype() {
           nickname: string;
           twitter_url: string | null;
           instagram_url: string | null;
+          comment: string | null;
           match_count: number;
         }) => ({
           id: m.id,
           nickname: m.nickname,
           twitter_url: m.twitter_url,
           instagram_url: m.instagram_url,
+          comment: m.comment,
           matchCount: m.match_count,
         })
       )
@@ -512,8 +530,16 @@ export default function ConstellationMatchPrototype() {
               <br />
               きっとどこかにいる。
             </h1>
-            <p style={{ color: colors.textMuted, fontSize: 15, lineHeight: 1.8, margin: "0 0 40px" }}>
-              {QUESTIONS.length}問の二択に答えて、あなたを探しましょう。
+            <p
+              style={{
+                color: colors.textMuted,
+                fontSize: "clamp(12.5px, 3.8vw, 15px)",
+                fontWeight: 400,
+                margin: "0 0 40px",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {QUESTIONS.length}問の二択に答えて、あなたと似た選択をした人と知りあおう。
             </p>
 
             {saved ? (
@@ -658,8 +684,7 @@ export default function ConstellationMatchPrototype() {
               あなたみたいなユーザーに見せる<br />プロフィールを登録
             </h2>
             <p style={{ color: colors.textMuted, fontSize: 13, lineHeight: 1.7, margin: "0 0 28px" }}>
-              ニックネームを入力してください。TwitterやInstagramのユーザー名は任意です。
-              入力しておくと、あなたみたいな相手と連絡を取りやすくなります。
+              ニックネームを入力してください。TwitterやInstagramのユーザー名を入力すると、あなたみたいな相手と実際につながれるようになります(入力は任意です)。
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 14, textAlign: "left" }}>
@@ -703,7 +728,9 @@ export default function ConstellationMatchPrototype() {
               </label>
 
               <label style={{ fontSize: 13 }}>
-                <span style={{ display: "block", marginBottom: 6, color: colors.textMuted }}>Twitterのユーザー名</span>
+                <span style={{ display: "block", marginBottom: 6, color: colors.textMuted }}>
+                  Twitterのユーザー名<span style={{ color: colors.gold, fontSize: 11 }}>(任意)</span>
+                </span>
                 <div
                   style={{
                     display: "flex",
@@ -735,7 +762,9 @@ export default function ConstellationMatchPrototype() {
               </label>
 
               <label style={{ fontSize: 13 }}>
-                <span style={{ display: "block", marginBottom: 6, color: colors.textMuted }}>Instagramのユーザー名</span>
+                <span style={{ display: "block", marginBottom: 6, color: colors.textMuted }}>
+                  Instagramのユーザー名<span style={{ color: colors.gold, fontSize: 11 }}>(任意)</span>
+                </span>
                 <div
                   style={{
                     display: "flex",
@@ -764,6 +793,34 @@ export default function ConstellationMatchPrototype() {
                     }}
                   />
                 </div>
+              </label>
+
+              <label style={{ fontSize: 13 }}>
+                <span style={{ display: "block", marginBottom: 6, color: colors.textMuted }}>
+                  ひとことコメント<span style={{ color: colors.gold, fontSize: 11 }}>(任意)</span>
+                </span>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value.slice(0, 80))}
+                  placeholder="例: 夜な夜な星を見るのが好きです"
+                  rows={2}
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: `1px solid ${colors.cardBorder}`,
+                    background: colors.card,
+                    color: colors.textPrimary,
+                    fontSize: 14,
+                    outline: "none",
+                    boxSizing: "border-box",
+                    resize: "none",
+                    fontFamily: "inherit",
+                  }}
+                />
+                <span style={{ display: "block", marginTop: 4, textAlign: "right", color: colors.textMuted, fontSize: 11 }}>
+                  {comment.length} / 80
+                </span>
               </label>
             </div>
 
@@ -909,6 +966,19 @@ export default function ConstellationMatchPrototype() {
                       <p style={{ fontSize: 12, color: colors.textMuted, margin: "2px 0 6px" }}>
                         {m.matchCount} / {QUESTIONS.length}問 一致
                       </p>
+                      {m.comment && (
+                        <p
+                          style={{
+                            fontSize: 12.5,
+                            color: colors.textPrimary,
+                            margin: "0 0 8px",
+                            lineHeight: 1.6,
+                            fontStyle: "italic",
+                          }}
+                        >
+                          「{m.comment}」
+                        </p>
+                      )}
                       <div style={{ display: "flex", gap: 8 }}>
                         {m.twitter_url && (
                           <a
@@ -967,7 +1037,7 @@ export default function ConstellationMatchPrototype() {
             margin: "40px 0 0",
           }}
         >
-          第{QUESTION_SET_NUMBER}セット目・{formatJapaneseDate(QUESTION_SET_EFFECTIVE_DATE)}-
+          第{QUESTION_SET_NUMBER}セット目・{formatJapaneseDate(QUESTION_SET_EFFECTIVE_DATE)}から適用
         </p>
       </div>
     </div>
