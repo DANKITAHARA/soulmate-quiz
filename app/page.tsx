@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ArrowRight, RotateCcw, Sparkle, User } from "lucide-react";
 import { QUESTIONS } from "./questions";
+import { supabase } from "./lib/supabaseClient";
 
 type Star = {
   id: number;
@@ -12,12 +13,12 @@ type Star = {
   opacity: number;
 };
 
-type Candidate = {
-  name: string;
-  handle: string;
-  answers: string[];
-  twitter: string;
-  instagram: string;
+type MatchResult = {
+  id: string;
+  nickname: string;
+  twitter_url: string | null;
+  instagram_url: string | null;
+  matchCount: number;
 };
 
 // ---- デザイントークン ----------------------------------------------------
@@ -39,44 +40,7 @@ const fontImport = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&display=swap');
 `;
 
-// ---- デモ用ダミーデータ(本番は実際の参加者データに差し替わります) --------
-const DUMMY_CANDIDATES: Candidate[] = [
-  {
-    name: "N.Kobayashi",
-    handle: "@n_koba_sky",
-    answers: ["A","A","B","A","A","B","A","B","A","A","B","A","A","B","A","A","B","A","B","A"],
-    twitter: "#",
-    instagram: "#",
-  },
-  {
-    name: "R.Aoyama",
-    handle: "@ryo_aoyama",
-    answers: ["A","A","A","A","A","B","A","B","A","A","B","A","A","B","A","A","B","A","B","A"],
-    twitter: "#",
-    instagram: "#",
-  },
-  {
-    name: "M.Fujita",
-    handle: "@mfujita_",
-    answers: ["B","A","B","B","A","B","B","A","B","A","A","B","B","A","B","B","A","B","A","B"],
-    twitter: "#",
-    instagram: "#",
-  },
-  {
-    name: "S.Nakata",
-    handle: "@s_nakata",
-    answers: ["A","B","B","A","A","A","A","B","A","B","B","A","A","B","A","A","B","A","A","B"],
-    twitter: "#",
-    instagram: "#",
-  },
-  {
-    name: "Y.Hoshino",
-    handle: "@yhoshino_star",
-    answers: ["A","A","B","A","B","B","A","A","B","A","B","A","B","A","B","A","A","B","A","B"],
-    twitter: "#",
-    instagram: "#",
-  },
-];
+// ---- 参加者データはSupabaseから取得します(ダミーデータは廃止) ----
 
 const RANK_STYLE = [
   { label: "1位", ring: colors.gold, glow: "0 0 0 3px rgba(231,183,80,0.35)" },
@@ -198,6 +162,8 @@ export default function ConstellationMatchPrototype() {
   const [twitterHandle, setTwitterHandle] = useState("");
   const [instagramHandle, setInstagramHandle] = useState("");
   const [formError, setFormError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [topMatches, setTopMatches] = useState<MatchResult[]>([]);
 
   const restart = () => {
     setStage("intro");
@@ -207,6 +173,7 @@ export default function ConstellationMatchPrototype() {
     setTwitterHandle("");
     setInstagramHandle("");
     setFormError("");
+    setTopMatches([]);
   };
 
   const choose = (value: string) => {
@@ -219,7 +186,7 @@ export default function ConstellationMatchPrototype() {
     }
   };
 
-  const submitRegistration = () => {
+  const submitRegistration = async () => {
     if (!nickname.trim()) {
       setFormError("ニックネームを入力してください。");
       return;
@@ -229,18 +196,61 @@ export default function ConstellationMatchPrototype() {
       return;
     }
     setFormError("");
-    // ここで本来はSupabaseへ保存する処理を呼び出します(次のステップで接続)
+    setSubmitting(true);
+
+    const answerPattern = answers.join("");
+
+    // 自分の回答をSupabaseに保存する
+    const { data: inserted, error: insertError } = await supabase
+      .from("participants")
+      .insert([
+        {
+          nickname: nickname.trim(),
+          twitter_url: twitterHandle.trim() || null,
+          instagram_url: instagramHandle.trim() || null,
+          answer_pattern: answerPattern,
+        },
+      ])
+      .select()
+      .single();
+
+    if (insertError || !inserted) {
+      setFormError("保存に失敗しました。時間をおいて再度お試しください。");
+      setSubmitting(false);
+      return;
+    }
+
+    // 自分以外の参加者を取得して一致率を計算する
+    const { data: others, error: fetchError } = await supabase
+      .from("participants")
+      .select("id, nickname, twitter_url, instagram_url, answer_pattern")
+      .neq("id", inserted.id);
+
+    if (fetchError || !others) {
+      setFormError("結果の取得に失敗しました。時間をおいて再度お試しください。");
+      setSubmitting(false);
+      return;
+    }
+
+    const scored: MatchResult[] = others.map((o) => {
+      let matchCount = 0;
+      for (let i = 0; i < answerPattern.length; i++) {
+        if (o.answer_pattern[i] === answerPattern[i]) matchCount++;
+      }
+      return {
+        id: o.id,
+        nickname: o.nickname,
+        twitter_url: o.twitter_url,
+        instagram_url: o.instagram_url,
+        matchCount,
+      };
+    });
+
+    scored.sort((a, b) => b.matchCount - a.matchCount);
+    setTopMatches(scored.slice(0, 3));
+    setSubmitting(false);
     setStage("result");
   };
-
-  const topMatches = useMemo(() => {
-    if (answers.length < QUESTIONS.length) return [];
-    const scored = DUMMY_CANDIDATES.map((c) => {
-      const matchCount = c.answers.reduce((acc, v, i) => acc + (v === answers[i] ? 1 : 0), 0);
-      return { ...c, matchCount };
-    });
-    return scored.sort((a, b) => b.matchCount - a.matchCount).slice(0, 3);
-  }, [answers]);
 
   return (
     <div
@@ -285,7 +295,7 @@ export default function ConstellationMatchPrototype() {
               }}
             >
               <Sparkle size={14} />
-              2^20分の1の出会い
+              2^30分の1の出会い
             </div>
             <h1
               style={{
@@ -475,6 +485,7 @@ export default function ConstellationMatchPrototype() {
 
             <button
               onClick={submitRegistration}
+              disabled={submitting}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -487,12 +498,15 @@ export default function ConstellationMatchPrototype() {
                 color: "#1A1200",
                 fontSize: 15,
                 fontWeight: 600,
-                cursor: "pointer",
+                cursor: submitting ? "default" : "pointer",
+                opacity: submitting ? 0.6 : 1,
                 width: "100%",
                 justifyContent: "center",
               }}
             >
-              結果を見る <ArrowRight size={16} />
+              {submitting ? "送信中..." : (
+                <>結果を見る <ArrowRight size={16} /></>
+              )}
             </button>
           </div>
         )}
@@ -524,60 +538,91 @@ export default function ConstellationMatchPrototype() {
               あなたに最も近い3人
             </p>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {topMatches.map((m, i) => (
-                <div
-                  key={m.handle}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 14,
-                    padding: "14px 16px",
-                    borderRadius: 16,
-                    background: colors.card,
-                    border: `1px solid ${colors.cardBorder}`,
-                    textAlign: "left",
-                  }}
-                >
+            {topMatches.length === 0 ? (
+              <p
+                style={{
+                  color: colors.textMuted,
+                  fontSize: 13,
+                  lineHeight: 1.8,
+                  textAlign: "left",
+                  padding: "16px",
+                  borderRadius: 16,
+                  background: colors.card,
+                  border: `1px solid ${colors.cardBorder}`,
+                }}
+              >
+                まだ運命の人は見つかっていません。もう少し参加者が増えるのをお待ちください。
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {topMatches.map((m, i) => (
                   <div
+                    key={m.id}
                     style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: "50%",
-                      background: colors.bgBaseSoft,
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 15,
-                      fontWeight: 600,
-                      boxShadow: `${RANK_STYLE[i].glow}, inset 0 0 0 1.5px ${RANK_STYLE[i].ring}`,
-                      flexShrink: 0,
+                      gap: 14,
+                      padding: "14px 16px",
+                      borderRadius: 16,
+                      background: colors.card,
+                      border: `1px solid ${colors.cardBorder}`,
+                      textAlign: "left",
                     }}
                   >
-                    {m.name[0]}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                      <span style={{ fontSize: 12, color: RANK_STYLE[i].ring, fontWeight: 600 }}>
-                        {RANK_STYLE[i].label}
-                      </span>
-                      <span style={{ fontSize: 14, fontWeight: 600 }}>{m.name}</span>
+                    <div
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: "50%",
+                        background: colors.bgBaseSoft,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 15,
+                        fontWeight: 600,
+                        boxShadow: `${RANK_STYLE[i].glow}, inset 0 0 0 1.5px ${RANK_STYLE[i].ring}`,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {m.nickname[0]}
                     </div>
-                    <p style={{ fontSize: 12, color: colors.textMuted, margin: "2px 0 6px" }}>
-                      {m.matchCount} / {QUESTIONS.length}問 一致 ・ {m.handle}
-                    </p>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <a href={m.twitter} style={{ fontSize: 12, color: colors.rose, textDecoration: "none" }}>
-                        Twitter
-                      </a>
-                      <a href={m.instagram} style={{ fontSize: 12, color: colors.rose, textDecoration: "none" }}>
-                        Instagram
-                      </a>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                        <span style={{ fontSize: 12, color: RANK_STYLE[i].ring, fontWeight: 600 }}>
+                          {RANK_STYLE[i].label}
+                        </span>
+                        <span style={{ fontSize: 14, fontWeight: 600 }}>{m.nickname}</span>
+                      </div>
+                      <p style={{ fontSize: 12, color: colors.textMuted, margin: "2px 0 6px" }}>
+                        {m.matchCount} / {QUESTIONS.length}問 一致
+                      </p>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        {m.twitter_url && (
+                          <a
+                            href={m.twitter_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ fontSize: 12, color: colors.rose, textDecoration: "none" }}
+                          >
+                            Twitter
+                          </a>
+                        )}
+                        {m.instagram_url && (
+                          <a
+                            href={m.instagram_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ fontSize: 12, color: colors.rose, textDecoration: "none" }}
+                          >
+                            Instagram
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             <button
               onClick={restart}
