@@ -40,9 +40,9 @@ export default function TermsPage() {
           <ul style={{ margin: "10px 0 0", paddingLeft: 20, lineHeight: 1.9 }}>
             <li>他人になりすまして登録する行為(自分以外の名前・SNSアカウントを無断で登録する行為を含む)</li>
             <li>虚偽の情報を登録する行為</li>
-            <li>マッチした相手に対する、誹謗中傷・嫌がらせ・過度な接触の強要</li>
-            <li>マッチした相手の情報を、本サービス外の第三者に無断で共有・公開する行為</li>
-            <li>宣伝・勧誘・営業など、マッチング以外の目的での利用</li>
+            <li>相手に対する、誹謗中傷・嫌がらせ・過度な接触の強要</li>
+            <li>相手の情報を、本サービス外の第三者に無断で共有・公開する行為</li>
+            <li>宣伝・勧誘・営業などの目的での利用</li>
             <li>本サービスの運営を妨げる行為(不正アクセス、大量の自動登録など)</li>
             <li>法令、公序良俗に違反する行為</li>
           </ul>
@@ -52,7 +52,6 @@ export default function TermsPage() {
         <Section title="免責事項">
           本サービスは個人が趣味の範囲で開発・運営しており、以下について保証するものではありません。
           <ul style={{ margin: "10px 0 0", paddingLeft: 20, lineHeight: 1.9 }}>
-            <li>マッチングの成立や、マッチした相手との相性</li>
             <li>サービスが中断・終了することなく継続的に提供されること</li>
             <li>登録データが消失しないこと</li>
           </ul>
@@ -67,8 +66,8 @@ export default function TermsPage() {
           本規約に関するお問い合わせは、下記までご連絡ください。
           <br />
           メール:{" "}
-          <a href="mailto:kthrdn@gmail.com" style={{ color: colors.rose }}>
-            kthrdn@gmail.com
+          <a href="mailto:2tothe20th@gmail.com" style={{ color: colors.rose }}>
+            2tothe20th@gmail.com
           </a>
         </Section>
 
@@ -86,9 +85,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h2 style={{ fontSize: 15, fontWeight: 600, color: colors.gold, margin: "0 0 8px" }}>
         {title}
       </h2>
-      <p style={{ fontSize: 13.5, lineHeight: 1.9, color: colors.textPrimary, margin: 0 }}>
+      <div style={{ fontSize: 13.5, lineHeight: 1.9, color: colors.textPrimary, margin: 0 }}>
         {children}
-      </p>
+      </div>
     </div>
   );
 }

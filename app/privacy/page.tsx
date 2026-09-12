@@ -61,8 +61,7 @@ export default function PrivacyPage() {
 
         <Section title="公開範囲">
           回答内容(はい/いいえ)そのものが他の参加者に表示されることはありません。
-          ニックネームとSNSのユーザー名は、回答パターンが一定以上近い相手にのみ表示されます。
-          それ以外の参加者には表示されません。
+          ニックネームとSNSのユーザー名は、回答パターンが一定以上近い相手にのみ表示されます。それ以外の参加者には表示されません。
         </Section>
 
         <Section title="セキュリティについて">
@@ -74,8 +73,8 @@ export default function PrivacyPage() {
           登録した内容の削除を希望される場合は、下記の連絡先までご連絡ください。
           <br />
           メール:{" "}
-          <a href="mailto:kthrdn@gmail.com" style={{ color: colors.rose }}>
-            kthrdn@gmail.com
+          <a href="mailto:2tothe20th@gmail.com" style={{ color: colors.rose }}>
+            2tothe20th@gmail.com
           </a>
         </Section>
 
@@ -100,9 +99,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       >
         {title}
       </h2>
-      <p style={{ fontSize: 13.5, lineHeight: 1.9, color: colors.textPrimary, margin: 0 }}>
+      <div style={{ fontSize: 13.5, lineHeight: 1.9, color: colors.textPrimary, margin: 0 }}>
         {children}
-      </p>
+      </div>
     </div>
   );
 }

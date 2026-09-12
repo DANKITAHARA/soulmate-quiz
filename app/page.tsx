@@ -967,7 +967,7 @@ export default function ConstellationMatchPrototype() {
             margin: "40px 0 0",
           }}
         >
-          第{QUESTION_SET_NUMBER}セット目・{formatJapaneseDate(QUESTION_SET_EFFECTIVE_DATE)}から適用
+          第{QUESTION_SET_NUMBER}セット目・{formatJapaneseDate(QUESTION_SET_EFFECTIVE_DATE)}-
         </p>
       </div>
     </div>
