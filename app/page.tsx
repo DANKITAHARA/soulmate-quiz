@@ -186,19 +186,38 @@ export default function ConstellationMatchPrototype() {
     }
   };
 
+  const HANDLE_PATTERN = /^[A-Za-z0-9_.]{1,30}$/;
+
+  const cleanHandle = (raw: string) => raw.trim().replace(/^@/, "");
+
   const submitRegistration = async () => {
     if (!nickname.trim()) {
       setFormError("ニックネームを入力してください。");
       return;
     }
-    if (!twitterHandle.trim() && !instagramHandle.trim()) {
+
+    const cleanTwitter = cleanHandle(twitterHandle);
+    const cleanInstagram = cleanHandle(instagramHandle);
+
+    if (!cleanTwitter && !cleanInstagram) {
       setFormError("TwitterかInstagramのどちらか一方は入力してください。");
       return;
     }
+    if (cleanTwitter && !HANDLE_PATTERN.test(cleanTwitter)) {
+      setFormError("Twitterのユーザー名は英数字・_(アンダースコア)・.(ピリオド)のみ使えます。");
+      return;
+    }
+    if (cleanInstagram && !HANDLE_PATTERN.test(cleanInstagram)) {
+      setFormError("Instagramのユーザー名は英数字・_(アンダースコア)・.(ピリオド)のみ使えます。");
+      return;
+    }
+
     setFormError("");
     setSubmitting(true);
 
     const answerPattern = answers.join("");
+    const twitterUrl = cleanTwitter ? `https://twitter.com/${cleanTwitter}` : null;
+    const instagramUrl = cleanInstagram ? `https://instagram.com/${cleanInstagram}` : null;
 
     // 自分の回答をSupabaseに保存する
     const { data: inserted, error: insertError } = await supabase
@@ -206,8 +225,8 @@ export default function ConstellationMatchPrototype() {
       .insert([
         {
           nickname: nickname.trim(),
-          twitter_url: twitterHandle.trim() || null,
-          instagram_url: instagramHandle.trim() || null,
+          twitter_url: twitterUrl,
+          instagram_url: instagramUrl,
           answer_pattern: answerPattern,
         },
       ])
@@ -410,7 +429,7 @@ export default function ConstellationMatchPrototype() {
               マッチした相手に見せる<br />プロフィールを登録
             </h2>
             <p style={{ color: colors.textMuted, fontSize: 13, lineHeight: 1.7, margin: "0 0 28px" }}>
-              ニックネームと、TwitterまたはInstagramのどちらか一方(両方でも可)を入力してください。
+              ニックネームと、TwitterまたはInstagramのユーザー名を(どちらか一方、両方でも可)入力してください。
               マッチした相手だけがこの情報を見られます。
             </p>
 
@@ -437,45 +456,67 @@ export default function ConstellationMatchPrototype() {
               </label>
 
               <label style={{ fontSize: 13 }}>
-                <span style={{ display: "block", marginBottom: 6, color: colors.textMuted }}>TwitterのプロフィールURL</span>
-                <input
-                  type="text"
-                  value={twitterHandle}
-                  onChange={(e) => setTwitterHandle(e.target.value)}
-                  placeholder="https://twitter.com/xxxxx"
+                <span style={{ display: "block", marginBottom: 6, color: colors.textMuted }}>Twitterのユーザー名</span>
+                <div
                   style={{
-                    width: "100%",
-                    padding: "12px 14px",
+                    display: "flex",
+                    alignItems: "center",
                     borderRadius: 12,
                     border: `1px solid ${colors.cardBorder}`,
                     background: colors.card,
-                    color: colors.textPrimary,
-                    fontSize: 15,
-                    outline: "none",
-                    boxSizing: "border-box",
+                    overflow: "hidden",
                   }}
-                />
+                >
+                  <span style={{ padding: "12px 0 12px 14px", color: colors.textMuted, fontSize: 15 }}>@</span>
+                  <input
+                    type="text"
+                    value={twitterHandle}
+                    onChange={(e) => setTwitterHandle(e.target.value)}
+                    placeholder="username"
+                    style={{
+                      flex: 1,
+                      padding: "12px 14px 12px 4px",
+                      border: "none",
+                      background: "transparent",
+                      color: colors.textPrimary,
+                      fontSize: 15,
+                      outline: "none",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
               </label>
 
               <label style={{ fontSize: 13 }}>
-                <span style={{ display: "block", marginBottom: 6, color: colors.textMuted }}>InstagramのプロフィールURL</span>
-                <input
-                  type="text"
-                  value={instagramHandle}
-                  onChange={(e) => setInstagramHandle(e.target.value)}
-                  placeholder="https://instagram.com/xxxxx"
+                <span style={{ display: "block", marginBottom: 6, color: colors.textMuted }}>Instagramのユーザー名</span>
+                <div
                   style={{
-                    width: "100%",
-                    padding: "12px 14px",
+                    display: "flex",
+                    alignItems: "center",
                     borderRadius: 12,
                     border: `1px solid ${colors.cardBorder}`,
                     background: colors.card,
-                    color: colors.textPrimary,
-                    fontSize: 15,
-                    outline: "none",
-                    boxSizing: "border-box",
+                    overflow: "hidden",
                   }}
-                />
+                >
+                  <span style={{ padding: "12px 0 12px 14px", color: colors.textMuted, fontSize: 15 }}>@</span>
+                  <input
+                    type="text"
+                    value={instagramHandle}
+                    onChange={(e) => setInstagramHandle(e.target.value)}
+                    placeholder="username"
+                    style={{
+                      flex: 1,
+                      padding: "12px 14px 12px 4px",
+                      border: "none",
+                      background: "transparent",
+                      color: colors.textPrimary,
+                      fontSize: 15,
+                      outline: "none",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
               </label>
             </div>
 
