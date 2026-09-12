@@ -168,7 +168,7 @@ export default function ConstellationMatchPrototype() {
   const [stage, setStage] = useState<"intro" | "quiz" | "register" | "result">("intro");
   const [qIndex, setQIndex] = useState(0);
   const [answers, setAnswers] = useState<string[]>([]);
-  const [rarity] = useState(() => Math.floor(Math.random() * 400) + 40);
+  const [exactMatchCount, setExactMatchCount] = useState(0);
 
   const [nickname, setNickname] = useState("");
   const [twitterHandle, setTwitterHandle] = useState("");
@@ -195,6 +195,7 @@ export default function ConstellationMatchPrototype() {
     setInstagramHandle("");
     setFormError("");
     setTopMatches([]);
+    setExactMatchCount(0);
     pickRandomSubject();
   };
 
@@ -272,21 +273,31 @@ export default function ConstellationMatchPrototype() {
       return;
     }
 
-    const scored: MatchResult[] = matches.map(
-      (m: {
-        id: string;
-        nickname: string;
-        twitter_url: string | null;
-        instagram_url: string | null;
-        match_count: number;
-      }) => ({
-        id: m.id,
-        nickname: m.nickname,
-        twitter_url: m.twitter_url,
-        instagram_url: m.instagram_url,
-        matchCount: m.match_count,
-      })
-    );
+    // 完全一致(全問同じ回答)の人数を取得する
+    const { data: exactCount } = await supabase.rpc("count_exact_matches", {
+      p_answer_pattern: answerPattern,
+      p_exclude_id: myId,
+    });
+    setExactMatchCount(typeof exactCount === "number" ? exactCount : 0);
+
+    const scored: MatchResult[] = matches
+      .map(
+        (m: {
+          id: string;
+          nickname: string;
+          twitter_url: string | null;
+          instagram_url: string | null;
+          match_count: number;
+        }) => ({
+          id: m.id,
+          nickname: m.nickname,
+          twitter_url: m.twitter_url,
+          instagram_url: m.instagram_url,
+          matchCount: m.match_count,
+        })
+      )
+      // 17問未満の一致は「最も近い3人」として表示しない
+      .filter((m: MatchResult) => m.matchCount >= 5);
 
     setTopMatches(scored);
     setSubmitting(false);
@@ -336,7 +347,7 @@ export default function ConstellationMatchPrototype() {
               }}
             >
               <img src="/logo-mark.svg" alt="" style={{ height: 16, width: "auto", objectFit: "contain" }} />
-              2^{QUESTIONS.length}分の1の出会い
+              〈 2 to the 20th 〉
             </div>
             <h1
               style={{
@@ -354,14 +365,13 @@ export default function ConstellationMatchPrototype() {
                   animation: subject ? "fadeInUp 0.5s ease" : "none",
                 }}
               >
-                {subject ? `${subject}は、` : "同じ選択をした誰かは、"}
+                {subject ? `${subject}も、` : ""}
               </span>
               <br />
               きっとどこかにいる。
             </h1>
             <p style={{ color: colors.textMuted, fontSize: 15, lineHeight: 1.8, margin: "0 0 40px" }}>
-              {QUESTIONS.length}問の二択に答えると、あなたと同じ回答をした人を探します。
-              全問答え終えると、2^{QUESTIONS.length}分の1の確率の出会いが待っています。
+              {QUESTIONS.length}問の二択に答えて、あなたを探しましょう。
             </p>
             <button
               onClick={() => setStage("quiz")}
@@ -458,11 +468,11 @@ export default function ConstellationMatchPrototype() {
                 margin: "0 0 8px",
               }}
             >
-              マッチした相手に見せる<br />プロフィールを登録
+              あなたみたいなユーザーに見せる<br />プロフィールを登録
             </h2>
             <p style={{ color: colors.textMuted, fontSize: 13, lineHeight: 1.7, margin: "0 0 28px" }}>
               ニックネームと、TwitterかInstagramのユーザー名を入力してください。
-              どちらか一方でも、両方でも構いません。マッチした相手だけがこの情報を見られます。
+              どちらか一方でも、両方でも構いません。あなたみたいな相手だけがこの情報を見られます。
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 14, textAlign: "left" }}>
@@ -599,7 +609,7 @@ export default function ConstellationMatchPrototype() {
                 margin: "0 0 4px",
               }}
             >
-              <RarityNumber target={rarity} /> 人
+              <RarityNumber target={exactMatchCount + 1} /> 人
             </p>
             <p style={{ color: colors.textMuted, fontSize: 13, margin: "0 0 40px" }}>
               全{(2 ** QUESTIONS.length).toLocaleString("ja-JP")}通り(2^{QUESTIONS.length})の組み合わせ中
