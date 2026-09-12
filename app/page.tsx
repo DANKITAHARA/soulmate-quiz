@@ -470,6 +470,7 @@ export default function ConstellationMatchPrototype() {
                 key={subject ?? "fallback"}
                 style={{
                   display: "inline-block",
+                  whiteSpace: "nowrap",
                   animation: subject ? "fadeInUp 0.5s ease" : "none",
                 }}
               >
@@ -625,7 +626,7 @@ export default function ConstellationMatchPrototype() {
             </h2>
             <p style={{ color: colors.textMuted, fontSize: 13, lineHeight: 1.7, margin: "0 0 28px" }}>
               ニックネームを入力してください。TwitterやInstagramのユーザー名は任意です。
-              入力しておくと、マッチした相手から連絡を取りやすくなります。あなたみたいな相手だけがこの情報を見られます。
+              入力しておくと、あなたみたいな相手と連絡を取りやすくなります。
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 14, textAlign: "left" }}>
@@ -812,7 +813,7 @@ export default function ConstellationMatchPrototype() {
                   border: `1px solid ${colors.cardBorder}`,
                 }}
               >
-                まだ運命の人は見つかっていません。もう少し参加者が増えるのをお待ちください。
+                あなたはまだ見つかっていません。もう少し参加者が増えるのをお待ちください。
               </p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
