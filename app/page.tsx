@@ -44,35 +44,35 @@ const DUMMY_CANDIDATES: Candidate[] = [
   {
     name: "N.Kobayashi",
     handle: "@n_koba_sky",
-    answers: ["A","A","B","A","A","B","A","B","A","A","B","A","A","B","A","A","B","A","B","A","A","B","A","A","B","A","A","B","A","B"],
+    answers: ["A","A","B","A","A","B","A","B","A","A","B","A","A","B","A","A","B","A","B","A"],
     twitter: "#",
     instagram: "#",
   },
   {
     name: "R.Aoyama",
     handle: "@ryo_aoyama",
-    answers: ["A","A","A","A","A","B","A","B","A","A","B","A","A","B","A","A","B","A","B","A","B","B","A","A","B","A","B","B","A","B"],
+    answers: ["A","A","A","A","A","B","A","B","A","A","B","A","A","B","A","A","B","A","B","A"],
     twitter: "#",
     instagram: "#",
   },
   {
     name: "M.Fujita",
     handle: "@mfujita_",
-    answers: ["B","A","B","B","A","B","B","A","B","A","A","B","B","A","B","B","A","B","A","B","A","B","B","A","A","B","A","A","B","A"],
+    answers: ["B","A","B","B","A","B","B","A","B","A","A","B","B","A","B","B","A","B","A","B"],
     twitter: "#",
     instagram: "#",
   },
   {
     name: "S.Nakata",
     handle: "@s_nakata",
-    answers: ["A","B","B","A","A","A","A","B","A","B","B","A","A","B","A","A","B","A","A","B","A","B","A","B","A","B","A","B","A","B"],
+    answers: ["A","B","B","A","A","A","A","B","A","B","B","A","A","B","A","A","B","A","A","B"],
     twitter: "#",
     instagram: "#",
   },
   {
     name: "Y.Hoshino",
     handle: "@yhoshino_star",
-    answers: ["A","A","B","A","B","B","A","A","B","A","B","A","B","A","B","A","A","B","A","B","B","A","A","B","A","A","B","A","B","A"],
+    answers: ["A","A","B","A","B","B","A","A","B","A","B","A","B","A","B","A","A","B","A","B"],
     twitter: "#",
     instagram: "#",
   },
@@ -285,7 +285,7 @@ export default function ConstellationMatchPrototype() {
               }}
             >
               <Sparkle size={14} />
-              2^30分の1の出会い
+              2^20分の1の出会い
             </div>
             <h1
               style={{
@@ -515,7 +515,7 @@ export default function ConstellationMatchPrototype() {
               <RarityNumber target={rarity} /> 人
             </p>
             <p style={{ color: colors.textMuted, fontSize: 13, margin: "0 0 40px" }}>
-              / 2^30人中(約10.7億通り)
+              / 2^{QUESTIONS.length}人中(約{(2 ** QUESTIONS.length).toLocaleString("ja-JP")}通り)
             </p>
 
             <div style={{ height: 1, background: colors.cardBorder, margin: "0 0 32px" }} />
