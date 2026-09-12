@@ -7,7 +7,7 @@
 // - QUESTION_SET_EFFECTIVE_DATE: 新しい質問を公開する日付(YYYY-MM-DD形式)
 // この2つを更新することで、過去の回答と新しい回答が自動的に区別され、
 // マッチングも新しいセットの参加者どうしでのみ行われるようになります。
-export const QUESTION_SET_NUMBER = "α";
+export const QUESTION_SET_NUMBER = 1;
 export const QUESTION_SET_EFFECTIVE_DATE = "2026-09-12";
 
 export type Question = {
