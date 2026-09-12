@@ -312,10 +312,6 @@ export default function ConstellationMatchPrototype() {
     const cleanTwitter = cleanHandle(twitterHandle);
     const cleanInstagram = cleanHandle(instagramHandle);
 
-    if (!cleanTwitter && !cleanInstagram) {
-      setFormError("TwitterかInstagramのどちらか一方は入力してください。");
-      return;
-    }
     if (cleanTwitter && !HANDLE_PATTERN.test(cleanTwitter)) {
       setFormError("Twitterのユーザー名は英数字・_(アンダースコア)・.(ピリオド)のみ使えます。");
       return;
@@ -410,6 +406,12 @@ export default function ConstellationMatchPrototype() {
     setStage("result");
   };
 
+  // 主語の文字数に応じて見出しの文字サイズを調整し、1行に収まりやすくする
+  const headlineText = subject ? `${subject}も、` : "";
+  const headlineMaxPx = headlineText
+    ? Math.max(20, Math.min(34, Math.round(420 / headlineText.length)))
+    : 34;
+
   return (
     <div
       style={{
@@ -458,7 +460,7 @@ export default function ConstellationMatchPrototype() {
             <h1
               style={{
                 fontFamily: "'Fraunces', ui-serif, Georgia, serif",
-                fontSize: "clamp(24px, 6vw, 34px)",
+                fontSize: `clamp(18px, 6vw, ${headlineMaxPx}px)`,
                 fontWeight: 600,
                 lineHeight: 1.4,
                 margin: "0 0 16px",
@@ -471,7 +473,7 @@ export default function ConstellationMatchPrototype() {
                   animation: subject ? "fadeInUp 0.5s ease" : "none",
                 }}
               >
-                {subject ? `${subject}も、` : ""}
+                {headlineText}
               </span>
               <br />
               きっとどこかにいる。
@@ -622,8 +624,8 @@ export default function ConstellationMatchPrototype() {
               あなたみたいなユーザーに見せる<br />プロフィールを登録
             </h2>
             <p style={{ color: colors.textMuted, fontSize: 13, lineHeight: 1.7, margin: "0 0 28px" }}>
-              ニックネームと、TwitterかInstagramのユーザー名を入力してください。
-              どちらか一方でも、両方でも構いません。あなたみたいな相手だけがこの情報を見られます。
+              ニックネームを入力してください。TwitterやInstagramのユーザー名は任意です。
+              入力しておくと、あなたみたいな相手と連絡を取りやすくなります。
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 14, textAlign: "left" }}>
@@ -913,7 +915,7 @@ export default function ConstellationMatchPrototype() {
             margin: "40px 0 0",
           }}
         >
-          第{QUESTION_SET_NUMBER}セット目・{formatJapaneseDate(QUESTION_SET_EFFECTIVE_DATE)}-
+          第{QUESTION_SET_NUMBER}セット目・{formatJapaneseDate(QUESTION_SET_EFFECTIVE_DATE)}から適用
         </p>
       </div>
     </div>
