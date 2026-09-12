@@ -1,6 +1,30 @@
 "use client";
+
 import { useState, useEffect, useRef, useMemo } from "react";
 import { ArrowRight, RotateCcw, Sparkle } from "lucide-react";
+
+type Star = {
+  id: number;
+  top: number;
+  left: number;
+  size: number;
+  opacity: number;
+};
+
+type Question = {
+  id: string;
+  text: string;
+  a: string;
+  b: string;
+};
+
+type Candidate = {
+  name: string;
+  handle: string;
+  answers: string[];
+  twitter: string;
+  instagram: string;
+};
 
 // ---- デザイントークン ----------------------------------------------------
 const colors = {
@@ -22,7 +46,7 @@ const fontImport = `
 `;
 
 // ---- デモ用ダミーデータ(本番は30問想定。デモでは6問に短縮) -------------
-const QUESTIONS = [
+const QUESTIONS: Question[] = [
   { id: "q1", text: "朝型か、夜型か。", a: "朝型", b: "夜型" },
   { id: "q2", text: "犬派か、猫派か。", a: "犬派", b: "猫派" },
   { id: "q3", text: "旅行は計画を立てる派か、即興で決める派か。", a: "計画派", b: "即興派" },
@@ -31,7 +55,7 @@ const QUESTIONS = [
   { id: "q6", text: "雨の日は好きか、苦手か。", a: "雨は好き", b: "雨は苦手" },
 ];
 
-const DUMMY_CANDIDATES = [
+const DUMMY_CANDIDATES: Candidate[] = [
   { name: "N.Kobayashi", handle: "@n_koba_sky", answers: ["A","A","B","A","A","B"], twitter: "#", instagram: "#" },
   { name: "R.Aoyama", handle: "@ryo_aoyama", answers: ["A","A","A","A","A","B"], twitter: "#", instagram: "#" },
   { name: "M.Fujita", handle: "@mfujita_", answers: ["B","A","B","B","A","B"], twitter: "#", instagram: "#" },
@@ -47,7 +71,7 @@ const RANK_STYLE = [
 
 // ---- 星の背景(控えめな一回きりの演出) -----------------------------------
 function Starfield() {
-  const [stars, setStars] = useState([]);
+  const [stars, setStars] = useState<Star[]>([]);
 
   useEffect(() => {
     setStars(
@@ -83,7 +107,7 @@ function Starfield() {
 }
 
 // ---- 進捗を星座の線で見せるインジケーター ---------------------------------
-function ConstellationProgress({ total, current }) {
+function ConstellationProgress({ total, current }: { total: number; current: number }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 32 }}>
       {Array.from({ length: total }, (_, i) => {
@@ -119,9 +143,9 @@ function ConstellationProgress({ total, current }) {
 }
 
 // ---- カウントアップする希少性の数字 ---------------------------------------
-function RarityNumber({ target }) {
+function RarityNumber({ target }: { target: number }) {
   const [value, setValue] = useState(0);
-  const frameRef = useRef();
+  const frameRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -131,14 +155,16 @@ function RarityNumber({ target }) {
     }
     const duration = 1200;
     const start = performance.now();
-    const tick = (now) => {
+    const tick = (now: number) => {
       const progress = Math.min((now - start) / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
       setValue(Math.round(eased * target));
       if (progress < 1) frameRef.current = requestAnimationFrame(tick);
     };
     frameRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frameRef.current);
+    return () => {
+      if (frameRef.current !== undefined) cancelAnimationFrame(frameRef.current);
+    };
   }, [target]);
 
   return (
@@ -150,7 +176,7 @@ function RarityNumber({ target }) {
 export default function ConstellationMatchPrototype() {
   const [stage, setStage] = useState("intro"); // intro | quiz | result
   const [qIndex, setQIndex] = useState(0);
-  const [answers, setAnswers] = useState([]);
+  const [answers, setAnswers] = useState<string[]>([]);
   const [rarity] = useState(() => Math.floor(Math.random() * 400) + 40);
 
   const restart = () => {
@@ -159,7 +185,7 @@ export default function ConstellationMatchPrototype() {
     setAnswers([]);
   };
 
-  const choose = (value) => {
+  const choose = (value: string) => {
     const next = [...answers, value];
     setAnswers(next);
     if (qIndex + 1 < QUESTIONS.length) {
@@ -279,7 +305,7 @@ export default function ConstellationMatchPrototype() {
               {QUESTIONS[qIndex].text}
             </h2>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              {["a", "b"].map((key) => (
+              {(["a", "b"] as const).map((key) => (
                 <button
                   key={key}
                   onClick={() => choose(key.toUpperCase())}
