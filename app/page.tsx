@@ -218,55 +218,55 @@ export default function ConstellationMatchPrototype() {
     const answerPattern = answers.join("");
     const twitterUrl = cleanTwitter ? `https://twitter.com/${cleanTwitter}` : null;
     const instagramUrl = cleanInstagram ? `https://instagram.com/${cleanInstagram}` : null;
+    const myId = crypto.randomUUID();
 
-    // 自分の回答をSupabaseに保存する
-    const { data: inserted, error: insertError } = await supabase
-      .from("participants")
-      .insert([
-        {
-          nickname: nickname.trim(),
-          twitter_url: twitterUrl,
-          instagram_url: instagramUrl,
-          answer_pattern: answerPattern,
-        },
-      ])
-      .select()
-      .single();
+    // 自分の回答をSupabaseに保存する(保存後の読み返しはしない設計)
+    const { error: insertError } = await supabase.from("participants").insert([
+      {
+        id: myId,
+        nickname: nickname.trim(),
+        twitter_url: twitterUrl,
+        instagram_url: instagramUrl,
+        answer_pattern: answerPattern,
+      },
+    ]);
 
-    if (insertError || !inserted) {
+    if (insertError) {
       setFormError("保存に失敗しました。時間をおいて再度お試しください。");
       setSubmitting(false);
       return;
     }
 
-    // 自分以外の参加者を取得して一致率を計算する
-    const { data: others, error: fetchError } = await supabase
-      .from("participants")
-      .select("id, nickname, twitter_url, instagram_url, answer_pattern")
-      .neq("id", inserted.id);
+    // マッチング専用関数を呼び出して、上位3人だけを取得する
+    const { data: matches, error: rpcError } = await supabase.rpc("get_top_matches", {
+      p_answer_pattern: answerPattern,
+      p_exclude_id: myId,
+      p_limit: 3,
+    });
 
-    if (fetchError || !others) {
+    if (rpcError || !matches) {
       setFormError("結果の取得に失敗しました。時間をおいて再度お試しください。");
       setSubmitting(false);
       return;
     }
 
-    const scored: MatchResult[] = others.map((o) => {
-      let matchCount = 0;
-      for (let i = 0; i < answerPattern.length; i++) {
-        if (o.answer_pattern[i] === answerPattern[i]) matchCount++;
-      }
-      return {
-        id: o.id,
-        nickname: o.nickname,
-        twitter_url: o.twitter_url,
-        instagram_url: o.instagram_url,
-        matchCount,
-      };
-    });
+    const scored: MatchResult[] = matches.map(
+      (m: {
+        id: string;
+        nickname: string;
+        twitter_url: string | null;
+        instagram_url: string | null;
+        match_count: number;
+      }) => ({
+        id: m.id,
+        nickname: m.nickname,
+        twitter_url: m.twitter_url,
+        instagram_url: m.instagram_url,
+        matchCount: m.match_count,
+      })
+    );
 
-    scored.sort((a, b) => b.matchCount - a.matchCount);
-    setTopMatches(scored.slice(0, 3));
+    setTopMatches(scored);
     setSubmitting(false);
     setStage("result");
   };
