@@ -171,6 +171,9 @@ function RarityNumber({ target }: { target: number }) {
 }
 
 const STORAGE_KEY = "soulmate_2to20th_participant";
+const ADMIN_STORAGE_KEY = "soulmate_2to20th_admin";
+// あなた専用の合言葉です。他の人に教えないでください。変更したい場合はこの文字列を書き換えてください。
+const ADMIN_SECRET = "3bqjhwpw6xibwcsg";
 
 type SavedParticipant = {
   id: string;
@@ -197,6 +200,7 @@ export default function ConstellationMatchPrototype() {
   const [loadingSaved, setLoadingSaved] = useState(false);
   const [honeypot, setHoneypot] = useState(""); // Bot対策:人間には見えない入力欄
   const registerEnteredAt = useRef<number | null>(null); // Bot対策:登録画面に入った時刻
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const pickRandomSubject = () => {
     setSubject(SUBJECTS[Math.floor(Math.random() * SUBJECTS.length)]);
@@ -224,6 +228,18 @@ export default function ConstellationMatchPrototype() {
       }
     } catch {
       // 読み込みに失敗しても致命的ではないので無視する
+    }
+
+    // 管理者判定:URLに ?admin=合言葉 が付いていれば記録する。以後は記録だけで判定する。
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const key = params.get("admin");
+      if (key === ADMIN_SECRET) {
+        localStorage.setItem(ADMIN_STORAGE_KEY, "1");
+      }
+      setIsAdmin(localStorage.getItem(ADMIN_STORAGE_KEY) === "1");
+    } catch {
+      // 失敗しても通常利用には影響しない
     }
   }, []);
 
@@ -350,10 +366,15 @@ export default function ConstellationMatchPrototype() {
       p_instagram_url: instagramUrl,
       p_answer_pattern: answerPattern,
       p_question_set: QUESTION_SET_NUMBER,
+      p_is_admin: isAdmin,
     });
 
     if (insertError) {
-      setFormError("保存に失敗しました。時間をおいて再度お試しください。");
+      if (insertError.message?.includes("EDIT_LIMIT_REACHED")) {
+        setFormError("編集できる回数の上限(5回)に達しました。これ以上は変更できません。");
+      } else {
+        setFormError("保存に失敗しました。時間をおいて再度お試しください。");
+      }
       setSubmitting(false);
       return;
     }
