@@ -195,6 +195,8 @@ export default function ConstellationMatchPrototype() {
   const [subject, setSubject] = useState<string | null>(null);
   const [saved, setSaved] = useState<SavedParticipant | null>(null);
   const [loadingSaved, setLoadingSaved] = useState(false);
+  const [honeypot, setHoneypot] = useState(""); // Bot対策:人間には見えない入力欄
+  const registerEnteredAt = useRef<number | null>(null); // Bot対策:登録画面に入った時刻
 
   const pickRandomSubject = () => {
     setSubject(SUBJECTS[Math.floor(Math.random() * SUBJECTS.length)]);
@@ -295,6 +297,7 @@ export default function ConstellationMatchPrototype() {
     if (qIndex + 1 < QUESTIONS.length) {
       setQIndex(qIndex + 1);
     } else {
+      registerEnteredAt.current = Date.now();
       setStage("register");
     }
   };
@@ -304,6 +307,15 @@ export default function ConstellationMatchPrototype() {
   const cleanHandle = (raw: string) => raw.trim().replace(/^@/, "");
 
   const submitRegistration = async () => {
+    // Bot対策:見えない欄に何か入力されていたら、機械的な送信とみなして静かに弾く
+    if (honeypot.trim()) {
+      return;
+    }
+    // Bot対策:登録画面表示から2秒未満での送信は、機械的な送信とみなして静かに弾く
+    if (registerEnteredAt.current && Date.now() - registerEnteredAt.current < 2000) {
+      return;
+    }
+
     if (!nickname.trim()) {
       setFormError("ニックネームを入力してください。");
       return;
@@ -630,6 +642,24 @@ export default function ConstellationMatchPrototype() {
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 14, textAlign: "left" }}>
+              {/* Bot対策:人間には見えない入力欄。人が触ることは通常ない */}
+              <input
+                type="text"
+                name="website"
+                value={honeypot}
+                onChange={(e) => setHoneypot(e.target.value)}
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  width: 1,
+                  height: 1,
+                  opacity: 0,
+                  pointerEvents: "none",
+                  left: "-9999px",
+                }}
+              />
               <label style={{ fontSize: 13 }}>
                 <span style={{ display: "block", marginBottom: 6, color: colors.textMuted }}>ニックネーム</span>
                 <input
