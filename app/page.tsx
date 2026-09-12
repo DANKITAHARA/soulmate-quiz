@@ -812,7 +812,7 @@ export default function ConstellationMatchPrototype() {
                   border: `1px solid ${colors.cardBorder}`,
                 }}
               >
-                まだ運命の人は見つかっていません。もう少し参加者が増えるのをお待ちください。
+                あなたはまだ見つかっていません。もう少し参加者が増えるのをお待ちください。
               </p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
