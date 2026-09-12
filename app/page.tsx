@@ -163,6 +163,14 @@ function RarityNumber({ target }: { target: number }) {
   );
 }
 
+const STORAGE_KEY = "soulmate_2to20th_participant";
+
+type SavedParticipant = {
+  id: string;
+  nickname: string;
+  answerPattern: string;
+};
+
 // ---- メインコンポーネント --------------------------------------------------
 export default function ConstellationMatchPrototype() {
   const [stage, setStage] = useState<"intro" | "quiz" | "register" | "result">("intro");
@@ -177,6 +185,8 @@ export default function ConstellationMatchPrototype() {
   const [submitting, setSubmitting] = useState(false);
   const [topMatches, setTopMatches] = useState<MatchResult[]>([]);
   const [subject, setSubject] = useState<string | null>(null);
+  const [saved, setSaved] = useState<SavedParticipant | null>(null);
+  const [loadingSaved, setLoadingSaved] = useState(false);
 
   const pickRandomSubject = () => {
     setSubject(SUBJECTS[Math.floor(Math.random() * SUBJECTS.length)]);
@@ -184,7 +194,69 @@ export default function ConstellationMatchPrototype() {
 
   useEffect(() => {
     pickRandomSubject();
+
+    // 以前回答済みかどうかをブラウザの記録から確認する
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.id && parsed?.nickname && parsed?.answerPattern) {
+          setSaved(parsed);
+        }
+      }
+    } catch {
+      // 読み込みに失敗しても致命的ではないので無視する
+    }
   }, []);
+
+  // 保存済みの回答をもとに、結果画面を直接表示する
+  const viewSavedResult = async () => {
+    if (!saved) return;
+    setLoadingSaved(true);
+
+    const { data: matches } = await supabase.rpc("get_top_matches", {
+      p_answer_pattern: saved.answerPattern,
+      p_exclude_id: saved.id,
+      p_limit: 3,
+    });
+
+    const { data: exactCount } = await supabase.rpc("count_exact_matches", {
+      p_answer_pattern: saved.answerPattern,
+      p_exclude_id: saved.id,
+    });
+
+    const scored: MatchResult[] = (matches || [])
+      .map(
+        (m: {
+          id: string;
+          nickname: string;
+          twitter_url: string | null;
+          instagram_url: string | null;
+          match_count: number;
+        }) => ({
+          id: m.id,
+          nickname: m.nickname,
+          twitter_url: m.twitter_url,
+          instagram_url: m.instagram_url,
+          matchCount: m.match_count,
+        })
+      )
+      .filter((m: MatchResult) => m.matchCount >= 10);
+
+    setNickname(saved.nickname);
+    setTopMatches(scored);
+    setExactMatchCount(typeof exactCount === "number" ? exactCount : 0);
+    setLoadingSaved(false);
+    setStage("result");
+  };
+
+  // 記録(ID)は保持したまま、質問に答え直せるようにする(送信時に上書き保存される)
+  const retakeQuiz = () => {
+    setQIndex(0);
+    setAnswers([]);
+    setFormError("");
+    setStage("quiz");
+  };
 
   const restart = () => {
     setStage("intro");
@@ -241,18 +313,17 @@ export default function ConstellationMatchPrototype() {
     const answerPattern = answers.join("");
     const twitterUrl = cleanTwitter ? `https://twitter.com/${cleanTwitter}` : null;
     const instagramUrl = cleanInstagram ? `https://instagram.com/${cleanInstagram}` : null;
-    const myId = crypto.randomUUID();
+    // 以前回答済みの場合は同じIDを引き継ぎ、上書き保存にする
+    const myId = saved?.id ?? crypto.randomUUID();
 
-    // 自分の回答をSupabaseに保存する(保存後の読み返しはしない設計)
-    const { error: insertError } = await supabase.from("participants").insert([
-      {
-        id: myId,
-        nickname: nickname.trim(),
-        twitter_url: twitterUrl,
-        instagram_url: instagramUrl,
-        answer_pattern: answerPattern,
-      },
-    ]);
+    // 自分の回答をSupabaseに保存する(同じIDなら上書き)
+    const { error: insertError } = await supabase.rpc("upsert_participant", {
+      p_id: myId,
+      p_nickname: nickname.trim(),
+      p_twitter_url: twitterUrl,
+      p_instagram_url: instagramUrl,
+      p_answer_pattern: answerPattern,
+    });
 
     if (insertError) {
       setFormError("保存に失敗しました。時間をおいて再度お試しください。");
@@ -296,8 +367,21 @@ export default function ConstellationMatchPrototype() {
           matchCount: m.match_count,
         })
       )
-      // 17問未満の一致は「最も近い3人」として表示しない
-      .filter((m: MatchResult) => m.matchCount >= 5);
+      // 10問未満の一致は「最も近い3人」として表示しない
+      .filter((m: MatchResult) => m.matchCount >= 10);
+
+    // 次回以降、答え直さずに結果を見られるようブラウザに記録しておく
+    try {
+      const record: SavedParticipant = {
+        id: myId,
+        nickname: nickname.trim(),
+        answerPattern,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
+      setSaved(record);
+    } catch {
+      // 保存に失敗しても結果表示自体は続ける
+    }
 
     setTopMatches(scored);
     setSubmitting(false);
@@ -373,24 +457,69 @@ export default function ConstellationMatchPrototype() {
             <p style={{ color: colors.textMuted, fontSize: 15, lineHeight: 1.8, margin: "0 0 40px" }}>
               {QUESTIONS.length}問の二択に答えて、あなたを探しましょう。
             </p>
-            <button
-              onClick={() => setStage("quiz")}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "14px 28px",
-                borderRadius: 999,
-                border: "none",
-                background: colors.gold,
-                color: "#1A1200",
-                fontSize: 15,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              はじめる <ArrowRight size={16} />
-            </button>
+
+            {saved ? (
+              <div>
+                <p style={{ color: colors.textMuted, fontSize: 13, margin: "0 0 16px" }}>
+                  前回、「{saved.nickname}」として回答済みです。
+                </p>
+                <button
+                  onClick={viewSavedResult}
+                  disabled={loadingSaved}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "14px 28px",
+                    borderRadius: 999,
+                    border: "none",
+                    background: colors.gold,
+                    color: "#1A1200",
+                    fontSize: 15,
+                    fontWeight: 600,
+                    cursor: loadingSaved ? "default" : "pointer",
+                    opacity: loadingSaved ? 0.6 : 1,
+                  }}
+                >
+                  {loadingSaved ? "読み込み中..." : "前回の結果を見る"} <ArrowRight size={16} />
+                </button>
+                <div style={{ marginTop: 14 }}>
+                  <button
+                    onClick={retakeQuiz}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: colors.textMuted,
+                      fontSize: 12.5,
+                      textDecoration: "underline",
+                      cursor: "pointer",
+                      padding: 0,
+                    }}
+                  >
+                    回答をやり直す(前回のデータは上書きされます)
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setStage("quiz")}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "14px 28px",
+                  borderRadius: 999,
+                  border: "none",
+                  background: colors.gold,
+                  color: "#1A1200",
+                  fontSize: 15,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                はじめる <ArrowRight size={16} />
+              </button>
+            )}
           </div>
         )}
 
@@ -561,6 +690,31 @@ export default function ConstellationMatchPrototype() {
                 </div>
               </label>
             </div>
+
+            <p
+              style={{
+                color: colors.textMuted,
+                fontSize: 11.5,
+                lineHeight: 1.7,
+                margin: "16px 0 0",
+                padding: "12px 14px",
+                borderRadius: 12,
+                background: "rgba(216,105,122,0.08)",
+                border: "1px solid rgba(216,105,122,0.2)",
+              }}
+            >
+              本名・住所・電話番号・メールアドレスなど、SNSのユーザー名以外の個人情報は入力しないでください。
+              個人が運営するサービスのため、セキュリティを完全に保証するものではありません。
+              詳しくは
+              <a href="/privacy" style={{ color: colors.rose, textDecoration: "underline" }}>
+                プライバシーについて
+              </a>
+              ・
+              <a href="/terms" style={{ color: colors.rose, textDecoration: "underline" }}>
+                利用規約
+              </a>
+              をご覧ください。
+            </p>
 
             {formError && (
               <p style={{ color: colors.rose, fontSize: 13, margin: "14px 0 0" }}>{formError}</p>
