@@ -506,7 +506,7 @@ export default function ConstellationMatchPrototype() {
               }}
             >
               <img src="/logo-mark.svg" alt="" style={{ height: 16, width: "auto", objectFit: "contain" }} />
-              〈 2 to the 20th 〉
+              〈 MEBI-Connect 〉
             </div>
             <h1
               style={{
@@ -539,7 +539,7 @@ export default function ConstellationMatchPrototype() {
                 whiteSpace: "nowrap",
               }}
             >
-              {QUESTIONS.length}問の二択に答えて、あなたと似た選択をした人と知りあおう。
+              {QUESTIONS.length}問の二択に答えて、あなたと似た選択をした人と繋がろう。
             </p>
 
             {saved ? (
@@ -684,7 +684,7 @@ export default function ConstellationMatchPrototype() {
               あなたみたいなユーザーに見せる<br />プロフィールを登録
             </h2>
             <p style={{ color: colors.textMuted, fontSize: 13, lineHeight: 1.7, margin: "0 0 28px" }}>
-              ニックネームを入力してください。TwitterやInstagramのユーザー名を入力すると、あなたみたいな相手と実際につながれるようになります(入力は任意です)。
+              ニックネームを入力してください。TwitterやInstagramのユーザー名を入力すると、あなたみたいな相手と実際に繋がれるようになります。(入力は任意です)
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 14, textAlign: "left" }}>
@@ -802,7 +802,7 @@ export default function ConstellationMatchPrototype() {
                 <textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value.slice(0, 80))}
-                  placeholder="例: 夜な夜な星を見るのが好きです"
+                  placeholder="例: 夜な夜な目を閉じるのが好きです"
                   rows={2}
                   style={{
                     width: "100%",
@@ -836,7 +836,7 @@ export default function ConstellationMatchPrototype() {
                 border: "1px solid rgba(216,105,122,0.2)",
               }}
             >
-              本名・住所・電話番号・メールアドレスなど、SNSのユーザー名以外の個人情報は入力しないでください。
+              本名・住所・電話番号・メールアドレスなどの過度な個人情報や誹謗中傷は入力しないでください。
               個人が運営するサービスのため、セキュリティを完全に保証するものではありません。
               詳しくは
               <a href="/privacy" style={{ color: colors.rose, textDecoration: "underline" }}>
