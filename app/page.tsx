@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { ArrowRight, RotateCcw, Sparkle } from "lucide-react";
+import { ArrowRight, RotateCcw, Sparkle, User } from "lucide-react";
+import { QUESTIONS } from "./questions";
 
 type Star = {
   id: number;
@@ -9,13 +10,6 @@ type Star = {
   left: number;
   size: number;
   opacity: number;
-};
-
-type Question = {
-  id: string;
-  text: string;
-  a: string;
-  b: string;
 };
 
 type Candidate = {
@@ -45,22 +39,43 @@ const fontImport = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&display=swap');
 `;
 
-// ---- デモ用ダミーデータ(本番は30問想定。デモでは6問に短縮) -------------
-const QUESTIONS: Question[] = [
-  { id: "q1", text: "朝型か、夜型か。", a: "朝型", b: "夜型" },
-  { id: "q2", text: "犬派か、猫派か。", a: "犬派", b: "猫派" },
-  { id: "q3", text: "旅行は計画を立てる派か、即興で決める派か。", a: "計画派", b: "即興派" },
-  { id: "q4", text: "休日は一人でいたいか、誰かといたいか。", a: "一人でいたい", b: "誰かといたい" },
-  { id: "q5", text: "甘いものが好きか、しょっぱいものが好きか。", a: "甘党", b: "辛党" },
-  { id: "q6", text: "雨の日は好きか、苦手か。", a: "雨は好き", b: "雨は苦手" },
-];
-
+// ---- デモ用ダミーデータ(本番は実際の参加者データに差し替わります) --------
 const DUMMY_CANDIDATES: Candidate[] = [
-  { name: "N.Kobayashi", handle: "@n_koba_sky", answers: ["A","A","B","A","A","B"], twitter: "#", instagram: "#" },
-  { name: "R.Aoyama", handle: "@ryo_aoyama", answers: ["A","A","A","A","A","B"], twitter: "#", instagram: "#" },
-  { name: "M.Fujita", handle: "@mfujita_", answers: ["B","A","B","B","A","B"], twitter: "#", instagram: "#" },
-  { name: "S.Nakata", handle: "@s_nakata", answers: ["A","B","B","A","A","A"], twitter: "#", instagram: "#" },
-  { name: "Y.Hoshino", handle: "@yhoshino_star", answers: ["A","A","B","A","B","B"], twitter: "#", instagram: "#" },
+  {
+    name: "N.Kobayashi",
+    handle: "@n_koba_sky",
+    answers: ["A","A","B","A","A","B","A","B","A","A","B","A","A","B","A","A","B","A","B","A","A","B","A","A","B","A","A","B","A","B"],
+    twitter: "#",
+    instagram: "#",
+  },
+  {
+    name: "R.Aoyama",
+    handle: "@ryo_aoyama",
+    answers: ["A","A","A","A","A","B","A","B","A","A","B","A","A","B","A","A","B","A","B","A","B","B","A","A","B","A","B","B","A","B"],
+    twitter: "#",
+    instagram: "#",
+  },
+  {
+    name: "M.Fujita",
+    handle: "@mfujita_",
+    answers: ["B","A","B","B","A","B","B","A","B","A","A","B","B","A","B","B","A","B","A","B","A","B","B","A","A","B","A","A","B","A"],
+    twitter: "#",
+    instagram: "#",
+  },
+  {
+    name: "S.Nakata",
+    handle: "@s_nakata",
+    answers: ["A","B","B","A","A","A","A","B","A","B","B","A","A","B","A","A","B","A","A","B","A","B","A","B","A","B","A","B","A","B"],
+    twitter: "#",
+    instagram: "#",
+  },
+  {
+    name: "Y.Hoshino",
+    handle: "@yhoshino_star",
+    answers: ["A","A","B","A","B","B","A","A","B","A","B","A","B","A","B","A","A","B","A","B","B","A","A","B","A","A","B","A","B","A"],
+    twitter: "#",
+    instagram: "#",
+  },
 ];
 
 const RANK_STYLE = [
@@ -174,15 +189,24 @@ function RarityNumber({ target }: { target: number }) {
 
 // ---- メインコンポーネント --------------------------------------------------
 export default function ConstellationMatchPrototype() {
-  const [stage, setStage] = useState("intro"); // intro | quiz | result
+  const [stage, setStage] = useState<"intro" | "quiz" | "register" | "result">("intro");
   const [qIndex, setQIndex] = useState(0);
   const [answers, setAnswers] = useState<string[]>([]);
   const [rarity] = useState(() => Math.floor(Math.random() * 400) + 40);
+
+  const [nickname, setNickname] = useState("");
+  const [twitterHandle, setTwitterHandle] = useState("");
+  const [instagramHandle, setInstagramHandle] = useState("");
+  const [formError, setFormError] = useState("");
 
   const restart = () => {
     setStage("intro");
     setQIndex(0);
     setAnswers([]);
+    setNickname("");
+    setTwitterHandle("");
+    setInstagramHandle("");
+    setFormError("");
   };
 
   const choose = (value: string) => {
@@ -191,8 +215,22 @@ export default function ConstellationMatchPrototype() {
     if (qIndex + 1 < QUESTIONS.length) {
       setQIndex(qIndex + 1);
     } else {
-      setStage("result");
+      setStage("register");
     }
+  };
+
+  const submitRegistration = () => {
+    if (!nickname.trim()) {
+      setFormError("ニックネームを入力してください。");
+      return;
+    }
+    if (!twitterHandle.trim() && !instagramHandle.trim()) {
+      setFormError("TwitterかInstagramのどちらか一方は入力してください。");
+      return;
+    }
+    setFormError("");
+    // ここで本来はSupabaseへ保存する処理を呼び出します(次のステップで接続)
+    setStage("result");
   };
 
   const topMatches = useMemo(() => {
@@ -261,8 +299,8 @@ export default function ConstellationMatchPrototype() {
               同じ選択をした<br />誰かが、どこかにいる。
             </h1>
             <p style={{ color: colors.textMuted, fontSize: 15, lineHeight: 1.8, margin: "0 0 40px" }}>
-              いくつかの二択に答えると、あなたと同じ選び方をした人を探します。
-              本番は30問、このデモでは{QUESTIONS.length}問で体験できます。
+              {QUESTIONS.length}個の二択に答えると、あなたと同じ選び方をした人を探します。
+              全問答えると2^{QUESTIONS.length}分の1の確率の出会いが待っています。
             </p>
             <button
               onClick={() => setStage("quiz")}
@@ -332,11 +370,138 @@ export default function ConstellationMatchPrototype() {
           </div>
         )}
 
+        {/* ---- REGISTER ---- */}
+        {stage === "register" && (
+          <div style={{ width: "100%" }}>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "6px 14px",
+                borderRadius: 999,
+                background: colors.goldSoft,
+                color: colors.gold,
+                fontSize: 13,
+                marginBottom: 20,
+              }}
+            >
+              <User size={14} />
+              あと少しで結果を見られます
+            </div>
+            <h2
+              style={{
+                fontFamily: "'Fraunces', ui-serif, Georgia, serif",
+                fontSize: 24,
+                lineHeight: 1.5,
+                margin: "0 0 8px",
+              }}
+            >
+              マッチした相手に見せる<br />プロフィールを登録
+            </h2>
+            <p style={{ color: colors.textMuted, fontSize: 13, lineHeight: 1.7, margin: "0 0 28px" }}>
+              ニックネームと、TwitterまたはInstagramのどちらか一方(両方でも可)を入力してください。
+              マッチした相手だけがこの情報を見られます。
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 14, textAlign: "left" }}>
+              <label style={{ fontSize: 13 }}>
+                <span style={{ display: "block", marginBottom: 6, color: colors.textMuted }}>ニックネーム</span>
+                <input
+                  type="text"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  placeholder="例: ほしの"
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: `1px solid ${colors.cardBorder}`,
+                    background: colors.card,
+                    color: colors.textPrimary,
+                    fontSize: 15,
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </label>
+
+              <label style={{ fontSize: 13 }}>
+                <span style={{ display: "block", marginBottom: 6, color: colors.textMuted }}>TwitterのプロフィールURL</span>
+                <input
+                  type="text"
+                  value={twitterHandle}
+                  onChange={(e) => setTwitterHandle(e.target.value)}
+                  placeholder="https://twitter.com/xxxxx"
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: `1px solid ${colors.cardBorder}`,
+                    background: colors.card,
+                    color: colors.textPrimary,
+                    fontSize: 15,
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </label>
+
+              <label style={{ fontSize: 13 }}>
+                <span style={{ display: "block", marginBottom: 6, color: colors.textMuted }}>InstagramのプロフィールURL</span>
+                <input
+                  type="text"
+                  value={instagramHandle}
+                  onChange={(e) => setInstagramHandle(e.target.value)}
+                  placeholder="https://instagram.com/xxxxx"
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: `1px solid ${colors.cardBorder}`,
+                    background: colors.card,
+                    color: colors.textPrimary,
+                    fontSize: 15,
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </label>
+            </div>
+
+            {formError && (
+              <p style={{ color: colors.rose, fontSize: 13, margin: "14px 0 0" }}>{formError}</p>
+            )}
+
+            <button
+              onClick={submitRegistration}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                marginTop: 24,
+                padding: "14px 28px",
+                borderRadius: 999,
+                border: "none",
+                background: colors.gold,
+                color: "#1A1200",
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: "pointer",
+                width: "100%",
+                justifyContent: "center",
+              }}
+            >
+              結果を見る <ArrowRight size={16} />
+            </button>
+          </div>
+        )}
+
         {/* ---- RESULT ---- */}
         {stage === "result" && (
           <div style={{ width: "100%", textAlign: "center" }}>
             <p style={{ color: colors.textMuted, fontSize: 14, margin: "0 0 8px" }}>
-              あなたの回答パターンは
+              {nickname ? `${nickname}さんの回答パターンは` : "あなたの回答パターンは"}
             </p>
             <p
               style={{
