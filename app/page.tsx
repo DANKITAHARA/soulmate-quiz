@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ArrowRight, RotateCcw, Sparkle, User } from "lucide-react";
+import { ArrowRight, RotateCcw, User } from "lucide-react";
 import { QUESTIONS } from "./questions";
 import { supabase } from "./lib/supabaseClient";
+import { SUBJECTS } from "./subjects";
 
 type Star = {
   id: number;
@@ -38,6 +39,17 @@ const colors = {
 
 const fontImport = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&display=swap');
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 `;
 
 // ---- 参加者データはSupabaseから取得します(ダミーデータは廃止) ----
@@ -164,6 +176,15 @@ export default function ConstellationMatchPrototype() {
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [topMatches, setTopMatches] = useState<MatchResult[]>([]);
+  const [subject, setSubject] = useState<string | null>(null);
+
+  const pickRandomSubject = () => {
+    setSubject(SUBJECTS[Math.floor(Math.random() * SUBJECTS.length)]);
+  };
+
+  useEffect(() => {
+    pickRandomSubject();
+  }, []);
 
   const restart = () => {
     setStage("intro");
@@ -174,6 +195,7 @@ export default function ConstellationMatchPrototype() {
     setInstagramHandle("");
     setFormError("");
     setTopMatches([]);
+    pickRandomSubject();
   };
 
   const choose = (value: string) => {
@@ -313,23 +335,33 @@ export default function ConstellationMatchPrototype() {
                 marginBottom: 28,
               }}
             >
-              <Sparkle size={14} />
-              2^30分の1の出会い
+              <img src="/logo-mark.svg" alt="" style={{ height: 16, width: "auto", objectFit: "contain" }} />
+              2^{QUESTIONS.length}分の1の出会い
             </div>
             <h1
               style={{
                 fontFamily: "'Fraunces', ui-serif, Georgia, serif",
-                fontSize: 34,
+                fontSize: "clamp(24px, 6vw, 34px)",
                 fontWeight: 600,
-                lineHeight: 1.35,
+                lineHeight: 1.4,
                 margin: "0 0 16px",
               }}
             >
-              同じ選択をした<br />誰かが、どこかにいる。
+              <span
+                key={subject ?? "fallback"}
+                style={{
+                  display: "inline-block",
+                  animation: subject ? "fadeInUp 0.5s ease" : "none",
+                }}
+              >
+                {subject ? `${subject}は、` : "同じ選択をした誰かは、"}
+              </span>
+              <br />
+              きっとどこかにいる。
             </h1>
             <p style={{ color: colors.textMuted, fontSize: 15, lineHeight: 1.8, margin: "0 0 40px" }}>
-              {QUESTIONS.length}個の二択に答えると、あなたと同じ選び方をした人を探します。
-              全問答えると2^{QUESTIONS.length}分の1の確率の出会いが待っています。
+              {QUESTIONS.length}問の二択に答えると、あなたと同じ回答をした人を探します。
+              全問答え終えると、2^{QUESTIONS.length}分の1の確率の出会いが待っています。
             </p>
             <button
               onClick={() => setStage("quiz")}
@@ -429,8 +461,8 @@ export default function ConstellationMatchPrototype() {
               マッチした相手に見せる<br />プロフィールを登録
             </h2>
             <p style={{ color: colors.textMuted, fontSize: 13, lineHeight: 1.7, margin: "0 0 28px" }}>
-              ニックネームと、TwitterまたはInstagramのユーザー名を(どちらか一方、両方でも可)入力してください。
-              マッチした相手だけがこの情報を見られます。
+              ニックネームと、TwitterかInstagramのユーザー名を入力してください。
+              どちらか一方でも、両方でも構いません。マッチした相手だけがこの情報を見られます。
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 14, textAlign: "left" }}>
@@ -570,7 +602,7 @@ export default function ConstellationMatchPrototype() {
               <RarityNumber target={rarity} /> 人
             </p>
             <p style={{ color: colors.textMuted, fontSize: 13, margin: "0 0 40px" }}>
-              / 2^{QUESTIONS.length}人中(約{(2 ** QUESTIONS.length).toLocaleString("ja-JP")}通り)
+              全{(2 ** QUESTIONS.length).toLocaleString("ja-JP")}通り(2^{QUESTIONS.length})の組み合わせ中
             </p>
 
             <div style={{ height: 1, background: colors.cardBorder, margin: "0 0 32px" }} />
