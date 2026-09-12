@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { ArrowRight, RotateCcw, User } from "lucide-react";
-import { QUESTIONS } from "./questions";
+import { QUESTIONS, QUESTION_SET_NUMBER, QUESTION_SET_EFFECTIVE_DATE } from "./questions";
 import { supabase } from "./lib/supabaseClient";
 import { SUBJECTS } from "./subjects";
 
@@ -134,6 +134,13 @@ function ConstellationProgress({ total, current }: { total: number; current: num
 }
 
 // ---- カウントアップする希少性の数字 ---------------------------------------
+// ---- 日付を「2026年9月12日」のような表記に整形 ---------------------------
+function formatJapaneseDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  if (!year || !month || !day) return isoDate;
+  return `${year}年${month}月${day}日`;
+}
+
 function RarityNumber({ target }: { target: number }) {
   const [value, setValue] = useState(0);
   const frameRef = useRef<number | undefined>(undefined);
@@ -169,6 +176,7 @@ type SavedParticipant = {
   id: string;
   nickname: string;
   answerPattern: string;
+  questionSet: number;
 };
 
 // ---- メインコンポーネント --------------------------------------------------
@@ -200,8 +208,16 @@ export default function ConstellationMatchPrototype() {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed?.id && parsed?.nickname && parsed?.answerPattern) {
+        if (
+          parsed?.id &&
+          parsed?.nickname &&
+          parsed?.answerPattern &&
+          parsed?.questionSet === QUESTION_SET_NUMBER
+        ) {
           setSaved(parsed);
+        } else {
+          // 質問セットが更新されている場合、古い記録は破棄する
+          localStorage.removeItem(STORAGE_KEY);
         }
       }
     } catch {
@@ -217,12 +233,14 @@ export default function ConstellationMatchPrototype() {
     const { data: matches } = await supabase.rpc("get_top_matches", {
       p_answer_pattern: saved.answerPattern,
       p_exclude_id: saved.id,
+      p_question_set: saved.questionSet,
       p_limit: 3,
     });
 
     const { data: exactCount } = await supabase.rpc("count_exact_matches", {
       p_answer_pattern: saved.answerPattern,
       p_exclude_id: saved.id,
+      p_question_set: saved.questionSet,
     });
 
     const scored: MatchResult[] = (matches || [])
@@ -323,6 +341,7 @@ export default function ConstellationMatchPrototype() {
       p_twitter_url: twitterUrl,
       p_instagram_url: instagramUrl,
       p_answer_pattern: answerPattern,
+      p_question_set: QUESTION_SET_NUMBER,
     });
 
     if (insertError) {
@@ -335,6 +354,7 @@ export default function ConstellationMatchPrototype() {
     const { data: matches, error: rpcError } = await supabase.rpc("get_top_matches", {
       p_answer_pattern: answerPattern,
       p_exclude_id: myId,
+      p_question_set: QUESTION_SET_NUMBER,
       p_limit: 3,
     });
 
@@ -348,6 +368,7 @@ export default function ConstellationMatchPrototype() {
     const { data: exactCount } = await supabase.rpc("count_exact_matches", {
       p_answer_pattern: answerPattern,
       p_exclude_id: myId,
+      p_question_set: QUESTION_SET_NUMBER,
     });
     setExactMatchCount(typeof exactCount === "number" ? exactCount : 0);
 
@@ -376,6 +397,7 @@ export default function ConstellationMatchPrototype() {
         id: myId,
         nickname: nickname.trim(),
         answerPattern,
+        questionSet: QUESTION_SET_NUMBER,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
       setSaved(record);
@@ -881,6 +903,18 @@ export default function ConstellationMatchPrototype() {
             </button>
           </div>
         )}
+
+        <p
+          style={{
+            color: colors.textMuted,
+            fontSize: 10.5,
+            opacity: 0.6,
+            textAlign: "center",
+            margin: "40px 0 0",
+          }}
+        >
+          第{QUESTION_SET_NUMBER}セット目・{formatJapaneseDate(QUESTION_SET_EFFECTIVE_DATE)}-
+        </p>
       </div>
     </div>
   );

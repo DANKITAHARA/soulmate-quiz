@@ -2,6 +2,14 @@
 // 全問「はい」「いいえ」の二択で答えられる質問文にしてあります。
 // text を書き換えるだけでOKです(a/bは "はい" / "いいえ" で固定にしています)。
 
+// 質問の中身を変更したら、この2つを必ず更新してください。
+// - QUESTION_SET_NUMBER: 1つ増やす(例: 1 → 2)
+// - QUESTION_SET_EFFECTIVE_DATE: 新しい質問を公開する日付(YYYY-MM-DD形式)
+// この2つを更新することで、過去の回答と新しい回答が自動的に区別され、
+// マッチングも新しいセットの参加者どうしでのみ行われるようになります。
+export const QUESTION_SET_NUMBER = 1;
+export const QUESTION_SET_EFFECTIVE_DATE = "2026-09-12";
+
 export type Question = {
   id: string;
   text: string;
