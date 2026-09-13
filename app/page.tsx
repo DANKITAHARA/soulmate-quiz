@@ -51,6 +51,107 @@ const fontImport = `
     transform: translateY(0);
   }
 }
+
+@keyframes miracleGlow {
+  0%, 100% {
+    text-shadow: 0 0 16px rgba(231,183,80,0.5), 0 0 32px rgba(231,183,80,0.25);
+  }
+  50% {
+    text-shadow: 0 0 28px rgba(231,183,80,0.9), 0 0 56px rgba(231,183,80,0.5);
+  }
+}
+
+@keyframes miracleBadgeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes miracleRingPulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+@keyframes miracleSparkle {
+  0%, 100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes bigStarPop {
+  0% {
+    transform: scale(0) rotate(-15deg);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.25) rotate(18deg);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(0.92) rotate(8deg);
+  }
+  100% {
+    transform: scale(1.05) rotate(12deg);
+    opacity: 0.95;
+  }
+}
+
+@keyframes flareShineAndVanish {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  12% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+  30% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes flareRotateOnly {
+  from {
+    transform: rotate(-20deg);
+  }
+  to {
+    transform: rotate(280deg);
+  }
+}
+
+@keyframes raysSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
 `;
 
 // ---- 参加者データはSupabaseから取得します(ダミーデータは廃止) ----
@@ -199,6 +300,7 @@ export default function ConstellationMatchPrototype() {
   const [qIndex, setQIndex] = useState(0);
   const [answers, setAnswers] = useState<string[]>([]);
   const [exactMatchCount, setExactMatchCount] = useState(0);
+  const [totalParticipants, setTotalParticipants] = useState(0);
 
   const [nickname, setNickname] = useState("");
   const [twitterHandle, setTwitterHandle] = useState("");
@@ -273,6 +375,10 @@ export default function ConstellationMatchPrototype() {
       p_question_set: saved.questionSet,
     });
 
+    const { data: totalCount } = await supabase.rpc("count_total_participants", {
+      p_question_set: saved.questionSet,
+    });
+
     const scored: MatchResult[] = (matches || [])
       .map(
         (m: {
@@ -296,6 +402,7 @@ export default function ConstellationMatchPrototype() {
     setNickname(saved.nickname);
     setTopMatches(scored);
     setExactMatchCount(typeof exactCount === "number" ? exactCount : 0);
+    setTotalParticipants(typeof totalCount === "number" ? totalCount : 0);
     setLoadingSaved(false);
     setStage("result");
   };
@@ -311,6 +418,7 @@ export default function ConstellationMatchPrototype() {
     setFormError("");
     setTopMatches([]);
     setExactMatchCount(0);
+    setTotalParticipants(0);
     pickRandomSubject();
   };
 
@@ -423,6 +531,12 @@ export default function ConstellationMatchPrototype() {
       p_question_set: QUESTION_SET_NUMBER,
     });
     setExactMatchCount(typeof exactCount === "number" ? exactCount : 0);
+
+    // 全回答者数を取得する
+    const { data: totalCount } = await supabase.rpc("count_total_participants", {
+      p_question_set: QUESTION_SET_NUMBER,
+    });
+    setTotalParticipants(typeof totalCount === "number" ? totalCount : 0);
 
     const scored: MatchResult[] = matches
       .map(
@@ -917,19 +1031,84 @@ export default function ConstellationMatchPrototype() {
             <p style={{ color: colors.textMuted, fontSize: 14, margin: "0 0 8px" }}>
               {nickname ? `${nickname}さんの回答パターンは` : "あなたの回答パターンは"}
             </p>
-            <p
-              style={{
-                fontFamily: "'Fraunces', ui-serif, Georgia, serif",
-                fontSize: 44,
-                fontWeight: 600,
-                color: colors.gold,
-                margin: "0 0 4px",
-              }}
-            >
-              <RarityNumber target={exactMatchCount + 1} /> 人
-            </p>
+
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <div style={{ position: "relative", display: "inline-block" }}>
+                {exactMatchCount >= 1 && (
+                  <>
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        width: 220,
+                        height: 220,
+                        marginLeft: -110,
+                        marginTop: -110,
+                        background: `repeating-conic-gradient(${colors.gold} 0deg 3deg, transparent 3deg 15deg)`,
+                        opacity: 0.18,
+                        borderRadius: "50%",
+                        animation: "raysSpin 15s linear infinite",
+                        pointerEvents: "none",
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: "absolute",
+                        inset: "-14px",
+                        borderRadius: "50%",
+                        border: `1.5px solid ${colors.gold}`,
+                        animation: "miracleRingPulse 1.8s ease-in-out infinite",
+                        pointerEvents: "none",
+                      }}
+                    />
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: "28%",
+                        left: -26,
+                        transform: "translateY(-50%)",
+                        fontSize: 14,
+                        animation: "miracleSparkle 1.8s ease-in-out infinite",
+                        pointerEvents: "none",
+                      }}
+                    >
+                      ✦
+                    </span>
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: "72%",
+                        right: -26,
+                        transform: "translateY(-50%)",
+                        fontSize: 14,
+                        animation: "miracleSparkle 1.8s ease-in-out infinite 0.6s",
+                        pointerEvents: "none",
+                      }}
+                    >
+                      ✦
+                    </span>
+                  </>
+                )}
+                <p
+                  style={{
+                    fontFamily: "'Fraunces', ui-serif, Georgia, serif",
+                    fontSize: 44,
+                    fontWeight: 600,
+                    color: colors.gold,
+                    margin: "0 0 4px",
+                    textAlign: "center",
+                    animation: exactMatchCount >= 1 ? "miracleGlow 1.8s ease-in-out infinite" : "none",
+                  }}
+                >
+                  <RarityNumber target={exactMatchCount} />
+                  人
+                </p>
+              </div>
+            </div>
+
             <p style={{ color: colors.textMuted, fontSize: 13, margin: "0 0 40px" }}>
-              全{(2 ** QUESTIONS.length).toLocaleString("ja-JP")}通り(2^{QUESTIONS.length})の組み合わせ中
+              / {totalParticipants}人(全回答者の総数中)
             </p>
 
             <div style={{ height: 1, background: colors.cardBorder, margin: "0 0 32px" }} />
