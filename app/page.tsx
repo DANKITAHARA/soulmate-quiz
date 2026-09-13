@@ -300,14 +300,6 @@ export default function ConstellationMatchPrototype() {
     setStage("result");
   };
 
-  // 記録(ID)は保持したまま、質問に答え直せるようにする(送信時に上書き保存される)
-  const retakeQuiz = () => {
-    setQIndex(0);
-    setAnswers([]);
-    setFormError("");
-    setStage("quiz");
-  };
-
   const restart = () => {
     setStage("intro");
     setQIndex(0);
@@ -322,6 +314,14 @@ export default function ConstellationMatchPrototype() {
     pickRandomSubject();
   };
 
+  // 管理者専用:記録(ID)は保持したまま、質問に答え直してテストできるようにする
+  const adminRetakeQuiz = () => {
+    setQIndex(0);
+    setAnswers([]);
+    setFormError("");
+    setStage("quiz");
+  };
+
   const choose = (value: string) => {
     const next = [...answers, value];
     setAnswers(next);
@@ -331,6 +331,13 @@ export default function ConstellationMatchPrototype() {
       registerEnteredAt.current = Date.now();
       setStage("register");
     }
+  };
+
+  // 1問前に戻り、その回答を変更できるようにする
+  const goToPreviousQuestion = () => {
+    if (qIndex === 0) return;
+    setAnswers((prev) => prev.slice(0, prev.length - 1));
+    setQIndex((i) => i - 1);
   };
 
   const HANDLE_PATTERN = /^[A-Za-z0-9_.]{1,30}$/;
@@ -539,7 +546,7 @@ export default function ConstellationMatchPrototype() {
                 whiteSpace: "nowrap",
               }}
             >
-              {QUESTIONS.length}問の二択に答えて、あなたと似た選択をした人と繋がろう。
+              {QUESTIONS.length}問の二択に答えて、あなたと似た選択をした人と知りあおう。
             </p>
 
             {saved ? (
@@ -567,22 +574,24 @@ export default function ConstellationMatchPrototype() {
                 >
                   {loadingSaved ? "読み込み中..." : "前回の結果を見る"} <ArrowRight size={16} />
                 </button>
-                <div style={{ marginTop: 14 }}>
-                  <button
-                    onClick={retakeQuiz}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: colors.textMuted,
-                      fontSize: 12.5,
-                      textDecoration: "underline",
-                      cursor: "pointer",
-                      padding: 0,
-                    }}
-                  >
-                    回答をやり直す(前回のデータは上書きされます)
-                  </button>
-                </div>
+                {isAdmin && (
+                  <div style={{ marginTop: 14 }}>
+                    <button
+                      onClick={adminRetakeQuiz}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: colors.textMuted,
+                        fontSize: 12.5,
+                        textDecoration: "underline",
+                        cursor: "pointer",
+                        padding: 0,
+                      }}
+                    >
+                      [管理者用] テストのため回答をやり直す
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <button
@@ -651,6 +660,27 @@ export default function ConstellationMatchPrototype() {
                 </button>
               ))}
             </div>
+
+            {qIndex > 0 && (
+              <div style={{ textAlign: "center", marginTop: 20 }}>
+                <button
+                  onClick={goToPreviousQuestion}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: colors.textMuted,
+                    fontSize: 12.5,
+                    cursor: "pointer",
+                    padding: 0,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 3,
+                  }}
+                >
+                  ← 戻る
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -684,7 +714,7 @@ export default function ConstellationMatchPrototype() {
               あなたみたいなユーザーに見せる<br />プロフィールを登録
             </h2>
             <p style={{ color: colors.textMuted, fontSize: 13, lineHeight: 1.7, margin: "0 0 28px" }}>
-              ニックネームを入力してください。TwitterやInstagramのユーザー名を入力すると、あなたみたいな相手と実際に繋がれるようになります。(入力は任意です)
+              ニックネームを入力してください。TwitterやInstagramのユーザー名を入力すると、あなたみたいな相手と実際につながれるようになります(入力は任意です)。
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 14, textAlign: "left" }}>
@@ -802,7 +832,7 @@ export default function ConstellationMatchPrototype() {
                 <textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value.slice(0, 80))}
-                  placeholder="例: 夜な夜な目を閉じるのが好きです"
+                  placeholder="例: 夜な夜な星を見るのが好きです"
                   rows={2}
                   style={{
                     width: "100%",
@@ -836,7 +866,7 @@ export default function ConstellationMatchPrototype() {
                 border: "1px solid rgba(216,105,122,0.2)",
               }}
             >
-              本名・住所・電話番号・メールアドレスなどの過度な個人情報や誹謗中傷は入力しないでください。
+              本名・住所・電話番号・メールアドレスなど、SNSのユーザー名以外の個人情報は入力しないでください。
               個人が運営するサービスのため、セキュリティを完全に保証するものではありません。
               詳しくは
               <a href="/privacy" style={{ color: colors.rose, textDecoration: "underline" }}>
