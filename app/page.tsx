@@ -1537,17 +1537,85 @@ export default function ConstellationMatchPrototype() {
               「{referrerMatch.nickname}」さんとの一致率
             </p>
 
-            <p
-              style={{
-                fontFamily: "'Fraunces', ui-serif, Georgia, serif",
-                fontSize: 56,
-                fontWeight: 600,
-                color: colors.gold,
-                margin: "0 0 40px",
-              }}
-            >
-              <RarityNumber target={Math.round((referrerMatch.matchCount / QUESTIONS.length) * 100)} />%
-            </p>
+            {(() => {
+              const referrerPercent = Math.round((referrerMatch.matchCount / QUESTIONS.length) * 100);
+              const isPerfectMatch = referrerPercent >= 100;
+              return (
+                <div style={{ display: "flex", justifyContent: "center" }}>
+                  <div style={{ position: "relative", display: "inline-block" }}>
+                    {isPerfectMatch && (
+                      <>
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: "50%",
+                            left: "50%",
+                            width: 220,
+                            height: 220,
+                            marginLeft: -110,
+                            marginTop: -110,
+                            background: `repeating-conic-gradient(${colors.gold} 0deg 3deg, transparent 3deg 15deg)`,
+                            opacity: 0.18,
+                            borderRadius: "50%",
+                            animation: "raysSpin 15s linear infinite",
+                            pointerEvents: "none",
+                          }}
+                        />
+                        <div
+                          style={{
+                            position: "absolute",
+                            inset: "-14px",
+                            borderRadius: "50%",
+                            border: `1.5px solid ${colors.gold}`,
+                            animation: "miracleRingPulse 1.8s ease-in-out infinite",
+                            pointerEvents: "none",
+                          }}
+                        />
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: "28%",
+                            left: -26,
+                            transform: "translateY(-50%)",
+                            fontSize: 14,
+                            animation: "miracleSparkle 1.8s ease-in-out infinite",
+                            pointerEvents: "none",
+                          }}
+                        >
+                          ✦
+                        </span>
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: "72%",
+                            right: -26,
+                            transform: "translateY(-50%)",
+                            fontSize: 14,
+                            animation: "miracleSparkle 1.8s ease-in-out infinite 0.6s",
+                            pointerEvents: "none",
+                          }}
+                        >
+                          ✦
+                        </span>
+                      </>
+                    )}
+                    <p
+                      style={{
+                        fontFamily: "'Fraunces', ui-serif, Georgia, serif",
+                        fontSize: 56,
+                        fontWeight: 600,
+                        color: colors.gold,
+                        margin: "0 0 40px",
+                        textAlign: "center",
+                        animation: isPerfectMatch ? "miracleGlow 1.8s ease-in-out infinite" : "none",
+                      }}
+                    >
+                      <RarityNumber target={referrerPercent} />%
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
 
             <button
               onClick={() => setStage("result")}
