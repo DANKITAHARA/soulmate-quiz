@@ -410,6 +410,9 @@ export default function ConstellationMatchPrototype() {
   const [contactClearStatus, setContactClearStatus] = useState<"idle" | "pending" | "done" | "error">("idle");
   // 結果画面からのシェア(Instagramはクリップボードにコピーする方式)
   const [instagramCopyStatus, setInstagramCopyStatus] = useState<"idle" | "done" | "error">("idle");
+  // 紹介リンク(?ref=紹介者のID)経由で来た場合、その人との一致度を結果画面に表示する
+  const [referrerId, setReferrerId] = useState<string | null>(null);
+  const [referrerMatch, setReferrerMatch] = useState<{ nickname: string; matchCount: number } | null>(null);
 
   const pickRandomSubject = () => {
     setSubject(SUBJECTS[Math.floor(Math.random() * SUBJECTS.length)]);
@@ -456,6 +459,17 @@ export default function ConstellationMatchPrototype() {
         localStorage.setItem(ADMIN_STORAGE_KEY, "1");
       }
       setIsAdmin(localStorage.getItem(ADMIN_STORAGE_KEY) === "1");
+    } catch {
+      // 失敗しても通常利用には影響しない
+    }
+
+    // 紹介リンク判定:URLに ?ref=紹介者のID が付いていれば記録する
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get("ref");
+      if (ref) {
+        setReferrerId(ref);
+      }
     } catch {
       // 失敗しても通常利用には影響しない
     }
@@ -552,6 +566,7 @@ export default function ConstellationMatchPrototype() {
     setExactMatchCount(0);
     setFirstFiveMatchCount(0);
     setTotalParticipants(0);
+    setReferrerMatch(null);
     pickRandomSubject();
   };
 
@@ -588,9 +603,16 @@ export default function ConstellationMatchPrototype() {
     return `${headline}\n\nあなたもMEBI-Connectで自分を探してみよう`;
   };
 
+  // 自分のIDを ?ref= に載せたリンク。ここから来た友達が診断を終えると、
+  // 自分との一致度を相手の結果画面に表示できる
+  const buildShareUrl = () => {
+    const base = window.location.origin;
+    return saved?.id ? `${base}/?ref=${saved.id}` : base;
+  };
+
   const shareToX = () => {
     const text = buildShareText();
-    const url = window.location.origin;
+    const url = buildShareUrl();
     window.open(
       `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
       "_blank",
@@ -599,14 +621,14 @@ export default function ConstellationMatchPrototype() {
   };
 
   const shareToLine = () => {
-    const text = `${buildShareText()}\n${window.location.origin}`;
+    const text = `${buildShareText()}\n${buildShareUrl()}`;
     window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
   };
 
   // Instagramには任意テキストをそのまま共有できるWeb Intentが存在しないため、
   // 共有文をクリップボードにコピーしたうえでInstagramを開く(貼り付けはユーザー操作)
   const shareToInstagram = async () => {
-    const text = `${buildShareText()}\n${window.location.origin}`;
+    const text = `${buildShareText()}\n${buildShareUrl()}`;
     try {
       await navigator.clipboard.writeText(text);
       setInstagramCopyStatus("done");
@@ -753,6 +775,19 @@ export default function ConstellationMatchPrototype() {
     });
     setTotalParticipants(typeof totalCount === "number" ? totalCount : 0);
 
+    // 紹介リンク経由で来ていれば、その紹介者との一致度も取得する
+    if (referrerId && referrerId !== myId) {
+      const { data: referrerRows } = await supabase.rpc("get_referrer_match", {
+        p_answer_pattern: answerPattern,
+        p_referrer_id: referrerId,
+        p_question_set: QUESTION_SET_NUMBER,
+      });
+      const referrerRow = Array.isArray(referrerRows) ? referrerRows[0] : null;
+      if (referrerRow) {
+        setReferrerMatch({ nickname: referrerRow.nickname, matchCount: referrerRow.match_count });
+      }
+    }
+
     const scored: MatchResult[] = matches
       .map(
         (m: {
@@ -886,11 +921,9 @@ export default function ConstellationMatchPrototype() {
     <div
       style={{
         position: "relative",
-        minHeight: 640,
+        minHeight: "100vh",
         color: colors.textPrimary,
         fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
-        borderRadius: 24,
-        overflow: "hidden",
       }}
     >
       <style>{fontImport}</style>
@@ -1494,6 +1527,26 @@ export default function ConstellationMatchPrototype() {
         {/* ---- RESULT ---- */}
         {stage === "result" && (
           <div style={{ width: "100%", textAlign: "center" }}>
+            {referrerMatch && (
+              <div
+                style={{
+                  margin: "0 0 28px",
+                  padding: "16px 18px",
+                  borderRadius: 16,
+                  background: colors.goldSoft,
+                  border: `1px solid rgba(231,183,80,0.35)`,
+                  textAlign: "left",
+                }}
+              >
+                <p style={{ fontSize: 12, color: colors.textMuted, margin: "0 0 4px" }}>
+                  この診断を教えてくれた人
+                </p>
+                <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>
+                  「{referrerMatch.nickname}」さんとは、{QUESTIONS.length}問中{referrerMatch.matchCount}問が一致していました
+                </p>
+              </div>
+            )}
+
             <p style={{ color: colors.textMuted, fontSize: 14, margin: "0 0 8px" }}>
               {nickname ? `${nickname}さんと同じ回答をした人は、` : "あなたと同じ回答をした人は、"}
             </p>
