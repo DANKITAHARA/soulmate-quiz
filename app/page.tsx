@@ -1851,7 +1851,7 @@ export default function ConstellationMatchPrototype() {
             <div style={{ height: 1, background: colors.cardBorder, margin: "32px 0 24px" }} />
 
             <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 16px" }}>
-              友達にもシェアする
+              友達にシェアしてみる
             </p>
             <div style={{ display: "flex", justifyContent: "center", gap: 14 }}>
               <button
