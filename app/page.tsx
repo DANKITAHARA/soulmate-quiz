@@ -1486,7 +1486,7 @@ export default function ConstellationMatchPrototype() {
               個人が運営するサービスのため、セキュリティを完全に保証するものではありません。
               詳しくは
               <a href="/privacy" style={{ color: colors.rose, textDecoration: "underline" }}>
-                プライバシーについて
+                プライバシー・ポリシー
               </a>
               ・
               <a href="/terms" style={{ color: colors.rose, textDecoration: "underline" }}>
