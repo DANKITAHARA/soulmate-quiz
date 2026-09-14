@@ -381,7 +381,7 @@ type SavedParticipant = {
 // ---- メインコンポーネント --------------------------------------------------
 export default function ConstellationMatchPrototype() {
   const [stage, setStage] = useState<
-    "intro" | "quiz" | "register" | "register-five" | "result" | "result-five"
+    "intro" | "quiz" | "register" | "register-five" | "referrer-result" | "result" | "result-five"
   >("intro");
   const [quizMode, setQuizMode] = useState<"five" | "twenty">("twenty");
   const [qIndex, setQIndex] = useState(0);
@@ -776,6 +776,7 @@ export default function ConstellationMatchPrototype() {
     setTotalParticipants(typeof totalCount === "number" ? totalCount : 0);
 
     // 紹介リンク経由で来ていれば、その紹介者との一致度も取得する
+    let foundReferrerMatch = false;
     if (referrerId && referrerId !== myId) {
       const { data: referrerRows } = await supabase.rpc("get_referrer_match", {
         p_answer_pattern: answerPattern,
@@ -785,6 +786,7 @@ export default function ConstellationMatchPrototype() {
       const referrerRow = Array.isArray(referrerRows) ? referrerRows[0] : null;
       if (referrerRow) {
         setReferrerMatch({ nickname: referrerRow.nickname, matchCount: referrerRow.match_count });
+        foundReferrerMatch = true;
       }
     }
 
@@ -825,7 +827,8 @@ export default function ConstellationMatchPrototype() {
 
     setTopMatches(scored);
     setSubmitting(false);
-    setStage("result");
+    // 紹介リンク経由で完走した場合は、先に紹介者との一致率だけを見せる画面を挟む
+    setStage(foundReferrerMatch ? "referrer-result" : "result");
   };
 
   // 5問版の登録:ニックネームのみ。6〜20問目はCで埋めて保存する
@@ -1524,29 +1527,54 @@ export default function ConstellationMatchPrototype() {
           </div>
         )}
 
+        {/* ---- REFERRER-RESULT(招待者との一致率だけを見せる中間画面) ---- */}
+        {stage === "referrer-result" && referrerMatch && (
+          <div style={{ width: "100%", textAlign: "center" }}>
+            <p style={{ color: colors.textMuted, fontSize: 14, margin: "0 0 8px" }}>
+              この診断を教えてくれた
+            </p>
+            <p style={{ fontSize: 20, fontWeight: 600, margin: "0 0 32px" }}>
+              「{referrerMatch.nickname}」さんとの一致率
+            </p>
+
+            <p
+              style={{
+                fontFamily: "'Fraunces', ui-serif, Georgia, serif",
+                fontSize: 56,
+                fontWeight: 600,
+                color: colors.gold,
+                margin: "0 0 40px",
+              }}
+            >
+              <RarityNumber target={Math.round((referrerMatch.matchCount / QUESTIONS.length) * 100)} />%
+            </p>
+
+            <button
+              onClick={() => setStage("result")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "14px 28px",
+                borderRadius: 999,
+                border: "none",
+                background: colors.gold,
+                color: "#1A1200",
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: "pointer",
+                width: "100%",
+                justifyContent: "center",
+              }}
+            >
+              みんなとの結果を見る <ArrowRight size={16} />
+            </button>
+          </div>
+        )}
+
         {/* ---- RESULT ---- */}
         {stage === "result" && (
           <div style={{ width: "100%", textAlign: "center" }}>
-            {referrerMatch && (
-              <div
-                style={{
-                  margin: "0 0 28px",
-                  padding: "16px 18px",
-                  borderRadius: 16,
-                  background: colors.goldSoft,
-                  border: `1px solid rgba(231,183,80,0.35)`,
-                  textAlign: "left",
-                }}
-              >
-                <p style={{ fontSize: 12, color: colors.textMuted, margin: "0 0 4px" }}>
-                  この診断を教えてくれた人
-                </p>
-                <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>
-                  「{referrerMatch.nickname}」さんとは、{QUESTIONS.length}問中{referrerMatch.matchCount}問が一致していました
-                </p>
-              </div>
-            )}
-
             <p style={{ color: colors.textMuted, fontSize: 14, margin: "0 0 8px" }}>
               {nickname ? `${nickname}さんと同じ回答をした人は、` : "あなたと同じ回答をした人は、"}
             </p>
@@ -1822,7 +1850,7 @@ export default function ConstellationMatchPrototype() {
             )}
             {instagramCopyStatus === "error" && (
               <p style={{ color: colors.rose, fontSize: 12, margin: "10px 0 0" }}>
-                コピーに失敗しました。お使いのブラウザではこの機能に対応していない可能性があります。
+                コピーに失敗しました。お使いの端末ではこの機能に対応していない可能性があります。
               </p>
             )}
 
