@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { ArrowRight, Camera, MessageCircle, RotateCcw, Trash2, User } from "lucide-react";
 import { QUESTIONS, QUESTION_SET_NUMBER, QUESTION_SET_EFFECTIVE_DATE } from "./questions";
 import { supabase } from "./lib/supabaseClient";
 import { SUBJECTS } from "./subjects";
+import { generateConstellation, getConstellationNumber } from "./lib/generateStar";
+import { ConstellationVisual } from "./components/ConstellationVisual";
 
 type Star = {
   id: number;
@@ -21,6 +23,7 @@ type MatchResult = {
   instagram_url: string | null;
   comment: string | null;
   matchCount: number;
+  answerPattern: string | null;
 };
 
 // ---- デザイントークン ----------------------------------------------------
@@ -203,6 +206,30 @@ const fontImport = `
     transform: rotate(360deg);
   }
 }
+
+@keyframes starTwinkle {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes starGlint {
+  0%, 92%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  95% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+  97% {
+    opacity: 1;
+    transform: scale(1.5);
+  }
+}
 `;
 
 // ---- 参加者データはSupabaseから取得します(ダミーデータは廃止) ----
@@ -381,7 +408,15 @@ type SavedParticipant = {
 // ---- メインコンポーネント --------------------------------------------------
 export default function ConstellationMatchPrototype() {
   const [stage, setStage] = useState<
-    "intro" | "quiz" | "register" | "register-five" | "referrer-result" | "result" | "result-five"
+    | "intro"
+    | "quiz"
+    | "constellation-reveal"
+    | "constellation-rise"
+    | "register"
+    | "register-five"
+    | "referrer-result"
+    | "result"
+    | "result-five"
   >("intro");
   const [quizMode, setQuizMode] = useState<"five" | "twenty">("twenty");
   const [qIndex, setQIndex] = useState(0);
@@ -413,6 +448,12 @@ export default function ConstellationMatchPrototype() {
   // 紹介リンク(?ref=紹介者のID)経由で来た場合、その人との一致度を結果画面に表示する
   const [referrerId, setReferrerId] = useState<string | null>(null);
   const [referrerMatch, setReferrerMatch] = useState<{ nickname: string; matchCount: number } | null>(null);
+  // 星座の命名フロー(20問完走後、nicknameの代わりに星座名を決める)
+  const [constellationNameDraft, setConstellationNameDraft] = useState("");
+  const [constellationNameError, setConstellationNameError] = useState("");
+  const [risePhase, setRisePhase] = useState<"pre" | "risen" | "twinkling">("pre");
+  // 完全一致(=同じ星座)の他の人がつけた名前
+  const [exactMatchNicknames, setExactMatchNicknames] = useState<string[]>([]);
 
   const pickRandomSubject = () => {
     setSubject(SUBJECTS[Math.floor(Math.random() * SUBJECTS.length)]);
@@ -480,6 +521,27 @@ export default function ConstellationMatchPrototype() {
     return () => cancelAnimationFrame(id);
   }, []);
 
+  // 星座が夜空に昇っていく演出:上昇→点灯を経て、自動的に register へ進む
+  useEffect(() => {
+    if (stage !== "constellation-rise") {
+      setRisePhase("pre");
+      return;
+    }
+    if (reducedMotion) {
+      setRisePhase("twinkling");
+      const advance = setTimeout(() => setStage("register"), 900);
+      return () => clearTimeout(advance);
+    }
+    const riseFrame = requestAnimationFrame(() => setRisePhase("risen"));
+    const twinkleTimer = setTimeout(() => setRisePhase("twinkling"), 1500);
+    const advanceTimer = setTimeout(() => setStage("register"), 3200);
+    return () => {
+      cancelAnimationFrame(riseFrame);
+      clearTimeout(twinkleTimer);
+      clearTimeout(advanceTimer);
+    };
+  }, [stage, reducedMotion]);
+
   // 保存済みの回答をもとに、結果画面を直接表示する
   const viewSavedResult = async () => {
     if (!saved) return;
@@ -533,6 +595,7 @@ export default function ConstellationMatchPrototype() {
           instagram_url: string | null;
           comment: string | null;
           match_count: number;
+          answer_pattern?: string | null;
         }) => ({
           id: m.id,
           nickname: m.nickname,
@@ -540,6 +603,7 @@ export default function ConstellationMatchPrototype() {
           instagram_url: m.instagram_url,
           comment: m.comment,
           matchCount: m.match_count,
+          answerPattern: m.answer_pattern ?? null,
         })
       )
       .filter((m: MatchResult) => m.matchCount >= 10);
@@ -567,6 +631,9 @@ export default function ConstellationMatchPrototype() {
     setFirstFiveMatchCount(0);
     setTotalParticipants(0);
     setReferrerMatch(null);
+    setConstellationNameDraft("");
+    setConstellationNameError("");
+    setExactMatchNicknames([]);
     pickRandomSubject();
   };
 
@@ -603,11 +670,12 @@ export default function ConstellationMatchPrototype() {
     return `${headline}\n\nあなたもMEBI-Connectで自分を探してみよう`;
   };
 
-  // 自分のIDを ?ref= に載せたリンク。ここから来た友達が診断を終えると、
-  // 自分との一致度を相手の結果画面に表示できる
+  // 自分の星座の共有カードページ。X/LINEなどでリンクを展開すると、
+  // この星座のビジュアルと名前がOGP画像として表示される。
+  // ここから来た友達が診断を終えると、自分との一致度も相手の結果画面に表示できる。
   const buildShareUrl = () => {
     const base = window.location.origin;
-    return saved?.id ? `${base}/?ref=${saved.id}` : base;
+    return saved?.id ? `${base}/share/${saved.id}` : base;
   };
 
   const shareToX = () => {
@@ -660,10 +728,33 @@ export default function ConstellationMatchPrototype() {
     setAnswers(next);
     if (qIndex + 1 < activeQuestions.length) {
       setQIndex(qIndex + 1);
-    } else {
+    } else if (quizMode === "five") {
       registerEnteredAt.current = Date.now();
-      setStage(quizMode === "five" ? "register-five" : "register");
+      setStage("register-five");
+    } else {
+      // 20問完走:ニックネームの代わりに、星座発見〜命名フローへ進む
+      setStage("constellation-reveal");
     }
+  };
+
+  // 20問すべて回答済みのときだけ、その回答パターンから星座を生成する
+  const finalAnswerPattern = answers.length === QUESTIONS.length ? answers.join("") : "";
+  const constellation = useMemo(
+    () => (finalAnswerPattern ? generateConstellation(finalAnswerPattern) : null),
+    [finalAnswerPattern]
+  );
+  const constellationNumber = finalAnswerPattern ? getConstellationNumber(finalAnswerPattern) : 0;
+
+  // 星座の名前(=ニックネーム)を確定させ、上昇アニメーションへ進む
+  const confirmConstellationName = () => {
+    const trimmed = constellationNameDraft.trim();
+    if (!trimmed) {
+      setConstellationNameError("星座の名前を入力してください。");
+      return;
+    }
+    setConstellationNameError("");
+    setNickname(`${trimmed}座`);
+    setStage("constellation-rise");
   };
 
   // 5問版の結果画面から、6問目以降に進んで20問版へ継続する
@@ -761,13 +852,24 @@ export default function ConstellationMatchPrototype() {
       return;
     }
 
-    // 完全一致(全問同じ回答)の人数を取得する
+    // 完全一致(全問同じ回答=同じ星座)の人数を取得する
     const { data: exactCount } = await supabase.rpc("count_exact_matches", {
       p_answer_pattern: answerPattern,
       p_exclude_id: myId,
       p_question_set: QUESTION_SET_NUMBER,
     });
     setExactMatchCount(typeof exactCount === "number" ? exactCount : 0);
+
+    // 同じ星座を見つけた他の人が、その星座につけた名前を取得する
+    const { data: nicknameRows } = await supabase.rpc("get_exact_match_nicknames", {
+      p_answer_pattern: answerPattern,
+      p_exclude_id: myId,
+      p_question_set: QUESTION_SET_NUMBER,
+      p_limit: 3,
+    });
+    setExactMatchNicknames(
+      Array.isArray(nicknameRows) ? nicknameRows.map((r: { nickname: string }) => r.nickname) : []
+    );
 
     // 全回答者数を取得する
     const { data: totalCount } = await supabase.rpc("count_total_participants", {
@@ -799,6 +901,7 @@ export default function ConstellationMatchPrototype() {
           instagram_url: string | null;
           comment: string | null;
           match_count: number;
+          answer_pattern?: string | null;
         }) => ({
           id: m.id,
           nickname: m.nickname,
@@ -806,6 +909,7 @@ export default function ConstellationMatchPrototype() {
           instagram_url: m.instagram_url,
           comment: m.comment,
           matchCount: m.match_count,
+          answerPattern: m.answer_pattern ?? null,
         })
       )
       // 10問未満の一致は「最も近い3人」として表示しない
@@ -898,9 +1002,6 @@ export default function ConstellationMatchPrototype() {
     setSubmitting(false);
     setStage("result-five");
   };
-
-  // 5問版から20問版へ継続中(ニックネームを引き継いで読み取り専用にする)かどうか
-  const isContinuationFromFive = quizMode === "twenty" && !!saved && saved.answerPattern.includes("C");
 
   // 主語の文字数に応じて見出しの文字サイズを調整し、1行に収まりやすくする
   const headlineText = subject ? `${subject}も、` : "";
@@ -1187,6 +1288,123 @@ export default function ConstellationMatchPrototype() {
           </div>
         )}
 
+        {/* ---- CONSTELLATION-REVEAL(20問完走:星座の発見と命名) ---- */}
+        {stage === "constellation-reveal" && constellation && (
+          <div style={{ width: "100%", textAlign: "center" }}>
+            <p
+              style={{
+                fontFamily: "'Fraunces', ui-serif, Georgia, serif",
+                fontSize: 20,
+                fontWeight: 600,
+                color: colors.gold,
+                margin: "0 0 20px",
+                animation: "miracleGlow 2.4s ease-in-out infinite",
+              }}
+            >
+              新しい星座を発見しました。
+            </p>
+
+            <div style={{ margin: "0 0 28px" }}>
+              <ConstellationVisual constellation={constellation} />
+            </div>
+
+            <p style={{ color: colors.textMuted, fontSize: 13, margin: "0 0 16px" }}>
+              この星座に名前をつけてあげましょう
+            </p>
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <input
+                type="text"
+                value={constellationNameDraft}
+                onChange={(e) => setConstellationNameDraft(e.target.value)}
+                placeholder="例: はやぶさ"
+                maxLength={12}
+                style={{
+                  flex: "0 1 200px",
+                  padding: "12px 14px",
+                  borderRadius: 12,
+                  border: `1px solid ${colors.cardBorder}`,
+                  background: colors.card,
+                  color: colors.textPrimary,
+                  fontSize: 15,
+                  outline: "none",
+                  textAlign: "left",
+                  boxSizing: "border-box",
+                }}
+              />
+              <span style={{ fontSize: 16, fontWeight: 600, flexShrink: 0 }}>座</span>
+            </div>
+
+            {constellationNameError && (
+              <p style={{ color: colors.rose, fontSize: 13, margin: "10px 0 0" }}>{constellationNameError}</p>
+            )}
+
+            <button
+              onClick={confirmConstellationName}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                marginTop: 24,
+                padding: "14px 28px",
+                borderRadius: 999,
+                border: "none",
+                background: colors.gold,
+                color: "#1A1200",
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: "pointer",
+                width: "100%",
+                justifyContent: "center",
+              }}
+            >
+              決定する <ArrowRight size={16} />
+            </button>
+          </div>
+        )}
+
+        {/* ---- CONSTELLATION-RISE(命名後、夜空に昇っていく演出) ---- */}
+        {stage === "constellation-rise" && constellation && (
+          <div style={{ width: "100%", textAlign: "center" }}>
+            <p style={{ color: colors.textMuted, fontSize: 14, margin: "0 0 24px" }}>
+              「{nickname}」が夜空に昇っていく……
+            </p>
+
+            <div
+              style={{
+                transform: risePhase === "pre" ? "translateY(120px)" : "translateY(0)",
+                opacity: risePhase === "pre" ? 0 : 1,
+                transition: reducedMotion ? "none" : "transform 1.4s ease-out, opacity 1.4s ease-out",
+              }}
+            >
+              <ConstellationVisual
+                constellation={constellation}
+                glow
+                twinkle={risePhase === "twinkling"}
+              />
+            </div>
+
+            <button
+              onClick={() => setStage("register")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                marginTop: 28,
+                padding: "12px 24px",
+                borderRadius: 999,
+                border: `1px solid ${colors.cardBorder}`,
+                background: "transparent",
+                color: colors.textMuted,
+                fontSize: 14,
+                cursor: "pointer",
+              }}
+            >
+              次へ <ArrowRight size={14} />
+            </button>
+          </div>
+        )}
+
         {/* ---- REGISTER-FIVE(5問版:ニックネームのみ) ---- */}
         {stage === "register-five" && (
           <div style={{ width: "100%" }}>
@@ -1322,9 +1540,26 @@ export default function ConstellationMatchPrototype() {
             >
               あなたみたいなユーザーに見せる<br />プロフィールを登録
             </h2>
-            <p style={{ color: colors.textMuted, fontSize: 13, lineHeight: 1.7, margin: "0 0 28px" }}>
-              ニックネームを入力してください。TwitterやInstagramのユーザー名を入力すると、あなたみたいな相手と実際につながれるようになります。
+            <p style={{ color: colors.textMuted, fontSize: 13, lineHeight: 1.7, margin: "0 0 20px" }}>
+              TwitterやInstagramのユーザー名を入力すると、あなたみたいな相手と実際につながれるようになります。
             </p>
+
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 16px",
+                borderRadius: 999,
+                background: colors.goldSoft,
+                color: colors.gold,
+                fontSize: 14,
+                fontWeight: 600,
+                marginBottom: 24,
+              }}
+            >
+              あなたの星座名: 「{nickname}」
+            </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 14, textAlign: "left" }}>
               {/* Bot対策:人間には見えない入力欄。人が触ることは通常ない */}
@@ -1345,33 +1580,6 @@ export default function ConstellationMatchPrototype() {
                   left: "-9999px",
                 }}
               />
-              <label style={{ fontSize: 13 }}>
-                <span style={{ display: "block", marginBottom: 6, color: colors.textMuted }}>ニックネーム</span>
-                <input
-                  type="text"
-                  value={nickname}
-                  onChange={(e) => !isContinuationFromFive && setNickname(e.target.value)}
-                  readOnly={isContinuationFromFive}
-                  placeholder="例: あなた"
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: 12,
-                    border: `1px solid ${colors.cardBorder}`,
-                    background: colors.card,
-                    color: colors.textPrimary,
-                    fontSize: 15,
-                    outline: "none",
-                    boxSizing: "border-box",
-                    opacity: isContinuationFromFive ? 0.6 : 1,
-                    cursor: isContinuationFromFive ? "not-allowed" : "text",
-                  }}
-                />
-                {isContinuationFromFive && (
-                  <span style={{ display: "block", marginTop: 4, fontSize: 11, color: colors.textMuted }}>
-                  </span>
-                )}
-              </label>
 
               <label style={{ fontSize: 13 }}>
                 <span style={{ display: "block", marginBottom: 6, color: colors.textMuted }}>
@@ -1483,7 +1691,6 @@ export default function ConstellationMatchPrototype() {
               }}
             >
               本名・住所・電話番号・メールアドレスなど過度な個人情報や誹謗中傷は入力しないでください。
-              個人が運営するサービスのため、セキュリティを完全に保証するものではありません。
               詳しくは
               <a href="/privacy" style={{ color: colors.rose, textDecoration: "underline" }}>
                 プライバシー・ポリシー
@@ -1644,7 +1851,7 @@ export default function ConstellationMatchPrototype() {
         {stage === "result" && (
           <div style={{ width: "100%", textAlign: "center" }}>
             <p style={{ color: colors.textMuted, fontSize: 14, margin: "0 0 8px" }}>
-              {nickname ? `${nickname}さんと同じ回答をした人は、` : "あなたと同じ回答をした人は、"}
+              {nickname ? `${nickname}を見つけた人は、` : "あなたと同じ星座を見つけた人は、"}
             </p>
 
             <div style={{ display: "flex", justifyContent: "center" }}>
@@ -1722,28 +1929,28 @@ export default function ConstellationMatchPrototype() {
               </div>
             </div>
 
-            <p style={{ color: colors.textMuted, fontSize: 13, margin: "0 0 40px" }}>
+            <p style={{ color: colors.textMuted, fontSize: 13, margin: exactMatchCount >= 1 && exactMatchNicknames.length > 0 ? "0 0 12px" : "0 0 40px" }}>
               / {totalParticipants}人(全回答者の総数中)
             </p>
 
-            
-
-            {exactMatchCount === 0 && (
-              <p
-                style={{
-                  fontFamily: "'Fraunces', ui-serif, Georgia, serif",
-                  fontSize: 24,
-                  fontWeight: 600,
-                  color: colors.gold,
-                  lineHeight: 1.6,
-                  margin: "0 0 32px",
-                }}
-              >
-                あなたは分類されません
-                <br />
-                これまでも これからも
+            {exactMatchCount >= 1 && exactMatchNicknames.length > 0 && (
+              <p style={{ color: colors.textMuted, fontSize: 13, lineHeight: 1.8, margin: "0 0 40px" }}>
+                他の人はこの星座に「{exactMatchNicknames.join("」「")}」という名前をつけました
               </p>
             )}
+
+            
+
+            {constellation && (
+              <div style={{ margin: "0 0 32px" }}>
+                <ConstellationVisual constellation={constellation} />
+                <p style={{ fontSize: 13, color: colors.textMuted, margin: "12px 0 0" }}>
+                  {nickname}
+                </p>
+              </div>
+            )}
+
+
             <div style={{ height: 1, background: colors.cardBorder, margin: "0 0 32px" }} />
             <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 20px", textAlign: "left" }}>
               あなたに最も近い3人
@@ -1798,21 +2005,52 @@ export default function ConstellationMatchPrototype() {
                       {m.nickname[0]}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                        <span style={{ fontSize: 12, color: RANK_STYLE[i].ring, fontWeight: 600 }}>
-                          {RANK_STYLE[i].label}
-                        </span>
-                        <span style={{ fontSize: 14, fontWeight: 600 }}>{m.nickname}</span>
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: 12, color: RANK_STYLE[i].ring, fontWeight: 600 }}>
+                              {RANK_STYLE[i].label}
+                            </span>
+                            <span style={{ fontSize: 14, fontWeight: 600 }}>{m.nickname}</span>
+                          </div>
+                          <p style={{ fontSize: 12, color: colors.textMuted, margin: "2px 0 6px" }}>
+                            {m.matchCount} / {QUESTIONS.length}問 一致
+                          </p>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            {m.twitter_url && (
+                              <a
+                                href={m.twitter_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ fontSize: 12, color: colors.rose, textDecoration: "none" }}
+                              >
+                                Twitter
+                              </a>
+                            )}
+                            {m.instagram_url && (
+                              <a
+                                href={m.instagram_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ fontSize: 12, color: colors.rose, textDecoration: "none" }}
+                              >
+                                Instagram
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                        {m.answerPattern && (
+                          <div style={{ width: 92, flexShrink: 0 }}>
+                            <ConstellationVisual constellation={generateConstellation(m.answerPattern)} compact />
+                          </div>
+                        )}
                       </div>
-                      <p style={{ fontSize: 12, color: colors.textMuted, margin: "2px 0 6px" }}>
-                        {m.matchCount} / {QUESTIONS.length}問 一致
-                      </p>
                       {m.comment && (
                         <p
                           style={{
                             fontSize: 12.5,
                             color: colors.textPrimary,
-                            margin: "0 0 8px",
+                            margin: "8px 0 0",
                             lineHeight: 1.6,
                             fontStyle: "italic",
                           }}
@@ -1820,28 +2058,6 @@ export default function ConstellationMatchPrototype() {
                           「{m.comment}」
                         </p>
                       )}
-                      <div style={{ display: "flex", gap: 8 }}>
-                        {m.twitter_url && (
-                          <a
-                            href={m.twitter_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ fontSize: 12, color: colors.rose, textDecoration: "none" }}
-                          >
-                            Twitter
-                          </a>
-                        )}
-                        {m.instagram_url && (
-                          <a
-                            href={m.instagram_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ fontSize: 12, color: colors.rose, textDecoration: "none" }}
-                          >
-                            Instagram
-                          </a>
-                        )}
-                      </div>
                     </div>
                   </div>
                 ))}

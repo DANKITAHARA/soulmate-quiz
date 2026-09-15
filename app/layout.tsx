@@ -13,6 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://mebi-connect.com"),
   title: "MEBI-Connect",
   description: "20問の二択に答えて、あなたと似た選択をした人と繋がろう。",
 };
