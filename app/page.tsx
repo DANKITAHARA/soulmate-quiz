@@ -665,9 +665,9 @@ export default function ConstellationMatchPrototype() {
   const buildShareText = () => {
     const headline =
       exactMatchCount >= 1
-        ? `${totalParticipants}人中、私と全く同じ回答をした人が【${exactMatchCount}人】いました。`
-        : `${totalParticipants}人中、私と全く同じ回答をした人は一人もいませんでした。`;
-    return `${headline}\n\nあなたもMEBI-Connectで自分を探してみよう`;
+        ? `【${nickname}】を見つけました！　私と全く同じ星座を見つけた人が【${exactMatchCount}人】いました！`
+        : `MEBI-Connectで初めて【${nickname}】を見つけました！`;
+    return `${headline}\nあなたも星座を探してみよう！`;
   };
 
   // 自分の星座の共有カードページ。X/LINEなどでリンクを展開すると、
@@ -678,8 +678,34 @@ export default function ConstellationMatchPrototype() {
     return saved?.id ? `${base}/share/${saved.id}` : base;
   };
 
-  const shareToX = () => {
+  // 対応している端末(主にモバイル)では、星座の画像そのものを添付してOSの共有シートを開く。
+  // X/LINEのアプリがあれば、そこに画像付きで渡せる。対応していない場合はfalseを返す。
+  const shareImageIfSupported = async (text: string): Promise<boolean> => {
+    if (!saved?.id || typeof navigator === "undefined" || !("share" in navigator)) {
+      return false;
+    }
+    const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
+    const probe = new File([""], "mebi-connect.png", { type: "image/png" });
+    if (nav.canShare && !nav.canShare({ files: [probe] })) {
+      return false;
+    }
+    try {
+      const res = await fetch(`/share/${saved.id}/opengraph-image`);
+      if (!res.ok) return false;
+      const blob = await res.blob();
+      const file = new File([blob], "mebi-connect.png", { type: blob.type || "image/png" });
+      await navigator.share({ files: [file], text });
+      return true;
+    } catch (err) {
+      // ユーザーが共有シートをキャンセルした場合は、URL版へのフォールバックはしない
+      if (err instanceof DOMException && err.name === "AbortError") return true;
+      return false;
+    }
+  };
+
+  const shareToX = async () => {
     const text = buildShareText();
+    if (await shareImageIfSupported(text)) return;
     const url = buildShareUrl();
     window.open(
       `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
@@ -688,8 +714,9 @@ export default function ConstellationMatchPrototype() {
     );
   };
 
-  const shareToLine = () => {
+  const shareToLine = async () => {
     const text = `${buildShareText()}\n${buildShareUrl()}`;
+    if (await shareImageIfSupported(text)) return;
     window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
   };
 
